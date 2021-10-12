@@ -11,3 +11,4 @@ from keras_unet_collection._model_u2net_2d import u2net_2d
 from keras_unet_collection._model_unet_3plus_2d import unet_3plus_2d
 from keras_unet_collection._model_transunet_2d import transunet_2d
 from keras_unet_collection._model_swin_unet_2d import swin_unet_2d
+from keras_unet_collection._model_deeplab_v3_plus import deeplab_v3_plus

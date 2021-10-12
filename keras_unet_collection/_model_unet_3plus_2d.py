@@ -109,14 +109,16 @@ def unet_3plus_2d_base(input_tensor, filter_num_down, filter_num_skip, filter_nu
         # for other backbones
         else:
             backbone_ = backbone_zoo(backbone, weights, input_tensor, depth_-1, freeze_backbone, freeze_batch_norm)
+            
             # collecting backbone feature maps
             X_encoder = backbone_([input_tensor,])
             depth_encode = len(X_encoder) + 1
+            print(X_encoder, depth_encode)
 
         # extra conv2d blocks are applied
         # if downsampling levels of a backbone < user-specified downsampling levels
         if depth_encode < depth_:
-
+            print(depth_encode, depth_)
             # begins at the deepest available tensor  
             X = X_encoder[-1]
 

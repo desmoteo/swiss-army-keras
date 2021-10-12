@@ -3,12 +3,17 @@ from __future__ import absolute_import
 
 from tensorflow.keras.applications import *
 from tensorflow.keras.models import Model
+from tensorflow.python.framework.tensor_shape import as_dimension
 
 from keras_unet_collection.utils import freeze_model
 
+import tensorflow_hub as hub
+
 import warnings
 
-layer_cadidates = {
+keras_layer_cadidates = {
+    'MobileNetV2' : ('block_1_expand_relu', 'block_3_expand_relu', 'block_6_expand_relu', 'block_13_expand_relu', 'out_relu'),
+    'MobileNetV3Large' : ('re_lu_2', 're_lu_6', 're_lu_15', 're_lu_29', 're_lu_38'),
     'VGG16': ('block1_conv2', 'block2_conv2', 'block3_conv3', 'block4_conv3', 'block5_conv3'),
     'VGG19': ('block1_conv2', 'block2_conv2', 'block3_conv4', 'block4_conv4', 'block5_conv4'),
     'ResNet50': ('conv1_relu', 'conv2_block3_out', 'conv3_block4_out', 'conv4_block6_out', 'conv5_block3_out'),
@@ -28,6 +33,32 @@ layer_cadidates = {
     'EfficientNetB5': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'top_activation'),
     'EfficientNetB6': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'top_activation'),
     'EfficientNetB7': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'top_activation'),}
+
+
+hub_layer_candidates = {
+    'EfficientNet-lite0' : ('reduction_1/expansion_output', 'reduction_2/expansion_output', 'reduction_3/expansion_output', 'reduction_4/expansion_output', 'reduction_5/expansion_output'),
+    'EfficientNet-lite1' : ('reduction_1/expansion_output', 'reduction_2/expansion_output', 'reduction_3/expansion_output', 'reduction_4/expansion_output', 'reduction_5/expansion_output'),
+    'EfficientNet-lite2' : ('reduction_1/expansion_output', 'reduction_2/expansion_output', 'reduction_3/expansion_output', 'reduction_4/expansion_output', 'reduction_5/expansion_output'),
+    'EfficientNet-lite3' : ('reduction_1/expansion_output', 'reduction_2/expansion_output', 'reduction_3/expansion_output', 'reduction_4/expansion_output', 'reduction_5/expansion_output'),
+    'EfficientNet-lite4' : ('reduction_1/expansion_output', 'reduction_2/expansion_output', 'reduction_3/expansion_output', 'reduction_4/expansion_output', 'reduction_5/expansion_output'),
+
+}
+
+backbone_hub_urls = {
+    'EfficientNet-lite0' : 'https://tfhub.dev/tensorflow/efficientnet/lite0/feature-vector/2',
+    'EfficientNet-lite1' : 'https://tfhub.dev/tensorflow/efficientnet/lite1/feature-vector/2',
+    'EfficientNet-lite2' : 'https://tfhub.dev/tensorflow/efficientnet/lite2/feature-vector/2',
+    'EfficientNet-lite3' : 'https://tfhub.dev/tensorflow/efficientnet/lite3/feature-vector/2',
+    'EfficientNet-lite4' : 'https://tfhub.dev/tensorflow/efficientnet/lite4/feature-vector/2',
+}
+
+backbone_hub_signatures = {
+    'EfficientNet-lite0' : 'image_feature_vector',
+    'EfficientNet-lite1' : 'image_feature_vector',
+    'EfficientNet-lite2' : 'image_feature_vector',
+    'EfficientNet-lite3' : 'image_feature_vector',
+    'EfficientNet-lite4' : 'image_feature_vector',
+}
 
 def bach_norm_checker(backbone_name, batch_norm):
     '''batch norm checker'''
@@ -73,22 +104,42 @@ def backbone_zoo(backbone_name, weights, input_tensor, depth, freeze_backbone, f
         
     '''
     
-    cadidate = layer_cadidates[backbone_name]
+
+    # ----- #
+    
+
+    using_hub = False
+    if 'hub://' in backbone_name:
+        using_hub = True
+        backbone_name = backbone_name[6:]
+        print(backbone_name)
+        backbone_ = hub.KerasLayer(backbone_hub_urls[backbone_name], input_shape=(513, 513, 3), signature=backbone_hub_signatures[backbone_name], signature_outputs_as_dict=True, trainable=False)
+        backbone_ = backbone_(input_tensor)
+        cadidate = hub_layer_candidates[backbone_name]
+        for c in cadidate:
+            print(backbone_[c])
+
+
+
+    else:
+        backbone_func = eval(backbone_name)
+        backbone_ = backbone_func(include_top=False, weights=weights, input_tensor=input_tensor, pooling=None,)
+    
+        cadidate = keras_layer_cadidates[backbone_name]
     
     # ----- #
     # depth checking
     depth_max = len(cadidate)
     if depth > depth_max:
         depth = depth_max
-    # ----- #
-    
-    backbone_func = eval(backbone_name)
-    backbone_ = backbone_func(include_top=False, weights=weights, input_tensor=input_tensor, pooling=None,)
-    
+
     X_skip = []
     
     for i in range(depth):
-        X_skip.append(backbone_.get_layer(cadidate[i]).output)
+        if using_hub:
+            X_skip.append(backbone_[cadidate[i]])
+        else:
+            X_skip.append(backbone_.get_layer(cadidate[i]).output)
         
     model = Model(inputs=[input_tensor,], outputs=X_skip, name='{}_backbone'.format(backbone_name))
     
