@@ -171,7 +171,7 @@ class SegmentationAlbumentationsDataLoader:
             #ax.set_title(f"Label: {label[i]}")
 
             
-    def show_results(self, model, num_images=4, set='test',):
+    def show_results(self, model, num_images=4, set='test', output=None):
 
         # extract 1 batch from the dataset
         res = next(self.datasets[set].__iter__())
@@ -180,13 +180,14 @@ class SegmentationAlbumentationsDataLoader:
         labels = res[1]
         
         preds = model.predict([images])
+
+        if output is not None:
+            preds = preds[output]
         
-        print(len(images), len(preds[-1]))
         fig = plt.figure(figsize=(22, 22))
         for i in range(num_images):
-            # print(label[i])
             visualize(
                 image=images[i],
-                predicted_mask=np.argmax(preds[-1][i], axis=-1)*255,
+                predicted_mask=np.argmax(preds[i], axis=-1)*255,
                 reference_mask=np.argmax(labels[i], axis=-1)*255,
             )
