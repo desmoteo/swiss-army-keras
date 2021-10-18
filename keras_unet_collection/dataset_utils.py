@@ -103,7 +103,7 @@ class SegmentationAlbumentationsDataLoader:
     def process_data(self, image, label, set):
         img = tf.image.decode_jpeg(tf.io.read_file(image), channels=3)
 
-        lbl = tf.image.decode_png(tf.io.read_file(label), channels=3)
+        lbl = tf.image.decode_png(tf.io.read_file(label), channels=1)
         aug_img, aug_msk = tf.numpy_function(func=self.aug_function, inp=[
                                              img, lbl, set], Tout=[tf.float32, tf.float32])
 
@@ -112,7 +112,7 @@ class SegmentationAlbumentationsDataLoader:
     def set_shapes(self, img, label, path):
         img.set_shape((self.width, self.height, 3))
         # label.set_shape((self.width,self.height,self.num_classes))
-        label.set_shape((self.width, self.height, 3))
+        label.set_shape((self.width, self.height, self.num_classes))
         return img, label
 
     def prepare_dataset(self, dataset, set):
@@ -162,10 +162,31 @@ class SegmentationAlbumentationsDataLoader:
             # print(label[i])
             visualize(
                 image=image[i],
-                mask=label[i]*255,
+                mask=np.argmax(label[i], axis=-1)*255,
             )
             t = image[i]  # tf.cast(image[i], tf.uint8)
             ax = fig.add_subplot(num_images, 5, i+1, xticks=[], yticks=[])
             #tf.numpy_function(func=ax.imshow, inp=[t], Tout=[])
             ax.imshow(image[i])
             #ax.set_title(f"Label: {label[i]}")
+
+            
+    def show_results(self, model, num_images=4, set='test',):
+
+        # extract 1 batch from the dataset
+        res = next(self.datasets[set].__iter__())
+
+        images = res[0]
+        labels = res[1]
+        
+        preds = model.predict([images])
+        
+        print(len(images), len(preds[-1]))
+        fig = plt.figure(figsize=(22, 22))
+        for i in range(num_images):
+            # print(label[i])
+            visualize(
+                image=images[i],
+                predicted_mask=np.argmax(preds[-1][i], axis=-1)*255,
+                reference_mask=np.argmax(labels[i], axis=-1)*255,
+            )

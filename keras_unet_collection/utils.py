@@ -46,7 +46,7 @@ def image_to_array(filenames, size, channel):
     if channel == 1:
         for i, name in enumerate(filenames):
             with Image.open(name) as pixio:
-                pix = pixio.resize((size, size), Image.NEAREST)
+                pix = pixio.resize((size, size), Image.NEAREST).convert('L')
                 out[i, ..., 0] = np.array(pix)
     else:
         for i, name in enumerate(filenames):

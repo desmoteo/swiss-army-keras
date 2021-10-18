@@ -218,4 +218,4 @@ def deeplab_v3_plus(input_tensor, n_labels, filter_num_down=[64, 128, 256, 512, 
     )(x)
     model_output = Conv2D(n_labels, kernel_size=(1, 1), padding="same")(x)
 
-    return Model(inputs=input_tensor, outputs=model_output)
+    return Model([input_tensor,], [model_output,])

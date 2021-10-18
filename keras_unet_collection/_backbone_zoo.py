@@ -13,7 +13,8 @@ import warnings
 
 keras_layer_cadidates = {
     'MobileNetV2' : ('block_1_expand_relu', 'block_3_expand_relu', 'block_6_expand_relu', 'block_13_expand_relu', 'out_relu'),
-    'MobileNetV3Large' : ('re_lu_2', 're_lu_6', 're_lu_15', 're_lu_29', 're_lu_38'),
+    #'MobileNetV3Large' : ('re_lu_2', 're_lu_6', 're_lu_15', 're_lu_29', 're_lu_38'),
+    'MobileNetV3Large' : ('re_lu_2', 're_lu_6', 're_lu_12', 're_lu_22', 're_lu_30'),
     'VGG16': ('block1_conv2', 'block2_conv2', 'block3_conv3', 'block4_conv3', 'block5_conv3'),
     'VGG19': ('block1_conv2', 'block2_conv2', 'block3_conv4', 'block4_conv4', 'block5_conv4'),
     'ResNet50': ('conv1_relu', 'conv2_block3_out', 'conv3_block4_out', 'conv4_block6_out', 'conv5_block3_out'),
@@ -33,6 +34,30 @@ keras_layer_cadidates = {
     'EfficientNetB5': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'top_activation'),
     'EfficientNetB6': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'top_activation'),
     'EfficientNetB7': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'top_activation'),}
+
+keras_kwargs = {
+    'MobileNetV2' : {},
+    'MobileNetV3Large' : {'minimalistic' : True},
+    'VGG16': {},
+    'VGG19': {},
+    'ResNet50': {},
+    'ResNet101': {},
+    'ResNet152': {},
+    'ResNet50V2': {},
+    'ResNet101V2': {},
+    'ResNet152V2': {},
+    'DenseNet121': {},
+    'DenseNet169': {},
+    'DenseNet201': {},
+    'EfficientNetB0': {},
+    'EfficientNetB1': {},
+    'EfficientNetB2': {},
+    'EfficientNetB3': {},
+    'EfficientNetB4': {},
+    'EfficientNetB5': {},
+    'EfficientNetB6': {},
+    'EfficientNetB7': {},
+}
 
 
 hub_layer_candidates = {
@@ -123,7 +148,7 @@ def backbone_zoo(backbone_name, weights, input_tensor, depth, freeze_backbone, f
 
     else:
         backbone_func = eval(backbone_name)
-        backbone_ = backbone_func(include_top=False, weights=weights, input_tensor=input_tensor, pooling=None,)
+        backbone_ = backbone_func(include_top=False, weights=weights, input_tensor=input_tensor, pooling=None, **keras_kwargs[backbone_name])
     
         cadidate = keras_layer_cadidates[backbone_name]
     
