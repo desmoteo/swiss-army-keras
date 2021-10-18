@@ -457,3 +457,18 @@ def triplet_1d(y_true, y_pred, N, margin=5.0):
     loss_val = tf.reduce_mean(loss_val)
     
     return loss_val
+
+
+def loss_adapter(loss_function):
+
+    loss_f = loss_function
+
+    def loss(y_true, y_pred):
+        scale = y_true.size[1] / y_pred.size[1]
+        new_height = int(round(y_pred.size[1] * scale))
+        scale = y_true.size[2] / y_pred.size[2]
+        new_width = int(round(y_pred.size[2] * scale))
+        y_pred_resized = tf.image.resize_images(y_pred, [new_height, new_width])
+        return loss_f(y_true, y_pred_resized)
+
+    return loss

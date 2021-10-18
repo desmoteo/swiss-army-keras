@@ -92,9 +92,10 @@ class SegmentationAlbumentationsDataLoader:
         aug_img = aug_data["image"]
 
         aug_msk = aug_data["mask"][:, :, 0]
+        
+        aug_img = aug_img.astype(np.float32)
 
         aug_img = aug_img/255.
-        aug_img = aug_img.astype(np.float32)
         aug_msk = tf.keras.utils.to_categorical(aug_msk-self.label_shift, num_classes=self.num_classes)
 
         return aug_img, aug_msk
