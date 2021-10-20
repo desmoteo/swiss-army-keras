@@ -10,6 +10,9 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 
+from skimage.transform import rescale, resize, downscale_local_mean
+
+
 # helper function for data visualization
 
 
@@ -28,7 +31,7 @@ def visualize(**images):
 
 class SegmentationAlbumentationsDataLoader:
 
-    def __init__(self, dataset_path, train_augmentations=None, val_augmentations=None, test_augmentations=None, images_dir='images', masks_dir='annotations', width=512, height=512, batch_size=16, num_classes=2, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, label_shift=0):
+    def __init__(self, dataset_path, train_augmentations=None, val_augmentations=None, test_augmentations=None, images_dir='images', masks_dir='annotations', width=512, height=512, batch_size=16, num_classes=2, mask_downsample=None, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, label_shift=0):
 
         self.ids = os.listdir(os.path.join(dataset_path, images_dir))
         self.num_classes = num_classes
@@ -56,6 +59,8 @@ class SegmentationAlbumentationsDataLoader:
         self.batch_size = batch_size
 
         self.label_shift = label_shift
+        
+        self.mask_downsample = mask_downsample
 
         self.augmentations = {}
 
@@ -96,8 +101,12 @@ class SegmentationAlbumentationsDataLoader:
         aug_img = aug_img.astype(np.float32)
 
         aug_img = aug_img/255.
-        aug_msk = tf.keras.utils.to_categorical(aug_msk-self.label_shift, num_classes=self.num_classes)
 
+        if self.mask_downsample is not None:                                   
+            aug_msk = rescale(aug_msk, 1.0/self.mask_downsample, anti_aliasing=False, multichannel=False, preserve_range=True, order=0)
+
+        aug_msk = tf.keras.utils.to_categorical(aug_msk-self.label_shift, num_classes=self.num_classes)
+        
         return aug_img, aug_msk
 
     @tf.function(input_signature=[tf.TensorSpec(None, tf.string), tf.TensorSpec(None, tf.string), tf.TensorSpec(None, tf.string)])
@@ -113,7 +122,10 @@ class SegmentationAlbumentationsDataLoader:
     def set_shapes(self, img, label, path):
         img.set_shape((self.width, self.height, 3))
         # label.set_shape((self.width,self.height,self.num_classes))
-        label.set_shape((self.width, self.height, self.num_classes))
+        if self.mask_downsample is None:
+            label.set_shape((self.width, self.height, self.num_classes))
+        else:
+            label.set_shape((int(self.width/self.mask_downsample) , int(self.height/self.mask_downsample) , self.num_classes))
         return img, label
 
     def prepare_dataset(self, dataset, set):

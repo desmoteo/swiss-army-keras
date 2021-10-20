@@ -459,16 +459,30 @@ def triplet_1d(y_true, y_pred, N, margin=5.0):
     return loss_val
 
 
-def loss_adapter(loss_function):
+def loss_adapter(loss_function, factor = 1, expand=False, from_logits=False):
 
     loss_f = loss_function
+    from_l = from_logits
+    expand_ = expand
+
+    #scale = scale
 
     def loss(y_true, y_pred):
-        scale = y_true.size[1] / y_pred.size[1]
-        new_height = int(round(y_pred.size[1] * scale))
-        scale = y_true.size[2] / y_pred.size[2]
-        new_width = int(round(y_pred.size[2] * scale))
-        y_pred_resized = tf.image.resize_images(y_pred, [new_height, new_width])
-        return loss_f(y_true, y_pred_resized)
+        
+        scale = ((tf.shape(y_true,  out_type=tf.float32)[1]) / (tf.shape(y_pred,  out_type=tf.float32)[1])) #if scale is None else scale
+        if expand_:
+            new_height = int(tf.math.round(tf.shape(y_pred,  out_type=tf.float32)[1] * scale))
+            new_width = int(tf.math.round(tf.shape(y_pred,  out_type=tf.float32)[2] * scale))
+            y_pred = tf.image.resize(y_pred, [new_height, new_width], method='bicubic')
+        else:
+            new_height = int(tf.math.round(tf.shape(y_pred,  out_type=tf.float32)[1] ))
+            new_width = int(tf.math.round(tf.shape(y_pred,  out_type=tf.float32)[2] ))
+            #max_pool_2d = tf.keras.layers.MaxPooling2D(pool_size=(scale, scale))
+            y_true = tf.round(tf.image.resize(y_true, [new_height, new_width], antialias=False, method='bilinear')+ tf.keras.backend.epsilon())
+            #y_true = max_pool_2d(y_true)
+        if from_logits:
+            y_pred = tf.keras.activations.sigmoid(y_pred)
+            y_true = tf.keras.activations.sigmoid(y_true)
+        return factor*loss_f(y_true, y_pred)
 
     return loss
