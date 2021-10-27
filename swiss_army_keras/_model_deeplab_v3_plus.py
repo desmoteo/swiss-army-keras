@@ -1,10 +1,10 @@
 
 from __future__ import absolute_import
 
-from keras_unet_collection.layer_utils import *
-from keras_unet_collection.activations import GELU, Snake
-from keras_unet_collection._backbone_zoo import backbone_zoo, bach_norm_checker
-from keras_unet_collection._model_unet_2d import UNET_left, UNET_right
+from swiss_army_keras.layer_utils import *
+from swiss_army_keras.activations import GELU, Snake
+from swiss_army_keras._backbone_zoo import backbone_zoo, bach_norm_checker
+from swiss_army_keras._model_unet_2d import UNET_left, UNET_right
 
 from tensorflow.keras.layers import Input, BatchNormalization, Conv2D, AveragePooling2D, UpSampling2D, Concatenate, Activation
 from tensorflow.keras.models import Model
@@ -120,7 +120,7 @@ def deeplab_v3_plus(input_tensor, n_labels, filter_num_down=[64, 128, 256, 512, 
         filter_num_aggregate: an int that defines the number of channels of full-scale aggregations.
         stack_num_down: number of convolutional layers per downsampling level/block. 
         stack_num_up: number of convolutional layers (after full-scale concat) per upsampling level/block.          
-        activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interfaces, e.g., ReLU                
+        activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interfaces, e.g., ReLU                
         batch_norm: True for batch normalization.
         pool: True or 'max' for MaxPooling2D.
               'ave' for AveragePooling2D.
@@ -252,7 +252,7 @@ def deeplab_v3_plus_lite(input_tensor, n_labels, filter_num_down=[64, 128, 256, 
         filter_num_aggregate: an int that defines the number of channels of full-scale aggregations.
         stack_num_down: number of convolutional layers per downsampling level/block. 
         stack_num_up: number of convolutional layers (after full-scale concat) per upsampling level/block.          
-        activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interfaces, e.g., ReLU                
+        activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interfaces, e.g., ReLU                
         batch_norm: True for batch normalization.
         pool: True or 'max' for MaxPooling2D.
               'ave' for AveragePooling2D.

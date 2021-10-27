@@ -1,10 +1,10 @@
 
 from __future__ import absolute_import
 
-from keras_unet_collection.layer_utils import *
-from keras_unet_collection.activations import GELU, Snake
-from keras_unet_collection._model_unet_2d import UNET_left, UNET_right
-from keras_unet_collection._backbone_zoo import backbone_zoo, bach_norm_checker
+from swiss_army_keras.layer_utils import *
+from swiss_army_keras.activations import GELU, Snake
+from swiss_army_keras._model_unet_2d import UNET_left, UNET_right
+from swiss_army_keras._backbone_zoo import backbone_zoo, bach_norm_checker
 
 from tensorflow.keras.layers import Input
 from tensorflow.keras.models import Model
@@ -28,7 +28,7 @@ def UNET_att_right(X, X_left, channel, att_channel, kernel_size=3, stack_num=2,
         att_channel: number of intermediate channel.        
         kernel_size: size of 2-d convolution kernels.
         stack_num: number of convolutional layers.
-        activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interfaces, e.g., 'ReLU'.
+        activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interfaces, e.g., 'ReLU'.
         atten_activation: a nonlinear attnetion activation.
                     The `sigma_1` in Oktay et al. 2018. Default is 'ReLU'.
         attention: 'add' for additive attention. 'multiply' for multiplicative attention.
@@ -83,7 +83,7 @@ def att_unet_2d_base(input_tensor, filter_num, stack_num_down=2, stack_num_up=2,
                     The depth is expected as `len(filter_num)`.
         stack_num_down: number of convolutional layers per downsampling level/block. 
         stack_num_up: number of convolutional layers (after concatenation) per upsampling level/block.
-        activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interfaces, e.g., 'ReLU'.      
+        activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interfaces, e.g., 'ReLU'.      
         atten_activation: a nonlinear atteNtion activation.
                     The `sigma_1` in Oktay et al. 2018. Default is 'ReLU'.
         attention: 'add' for additive attention. 'multiply' for multiplicative attention.
@@ -214,8 +214,8 @@ def att_unet_2d(input_size, filter_num, n_labels, stack_num_down=2, stack_num_up
         n_labels: number of output labels.
         stack_num_down: number of convolutional layers per downsampling level/block. 
         stack_num_up: number of convolutional layers (after concatenation) per upsampling level/block.
-        activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interfaces, e.g., 'ReLU'.
-        output_activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interface or 'Sigmoid'.
+        activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interfaces, e.g., 'ReLU'.
+        output_activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interface or 'Sigmoid'.
                            Default option is 'Softmax'.
                            if None is received, then linear activation is applied.
         atten_activation: a nonlinear atteNtion activation.

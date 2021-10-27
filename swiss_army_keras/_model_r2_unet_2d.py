@@ -1,8 +1,8 @@
 
 from __future__ import absolute_import
 
-from keras_unet_collection.layer_utils import *
-from keras_unet_collection.activations import GELU, Snake
+from swiss_army_keras.layer_utils import *
+from swiss_army_keras.activations import GELU, Snake
 
 from tensorflow.keras.layers import Input
 from tensorflow.keras.models import Model
@@ -20,7 +20,7 @@ def RR_CONV(X, channel, kernel_size=3, stack_num=2, recur_num=2, activation='ReL
         kernel_size: size of 2-d convolution kernels.
         stack_num: number of stacked recurrent convolutional layers.
         recur_num: number of recurrent iterations.
-        activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interfaces, e.g., 'ReLU'.
+        activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interfaces, e.g., 'ReLU'.
         batch_norm: True for batch normalization, False otherwise.
         name: prefix of the created keras layers.
         
@@ -79,7 +79,7 @@ def UNET_RR_left(X, channel, kernel_size=3,
         kernel_size: size of 2-d convolution kernels.
         stack_num: number of stacked recurrent convolutional layers.
         recur_num: number of recurrent iterations.
-        activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interfaces, e.g., 'ReLU'.
+        activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interfaces, e.g., 'ReLU'.
         pool: True or 'max' for MaxPooling2D.
               'ave' for AveragePooling2D.
               False for strided conv + batch norm + activation.
@@ -122,7 +122,7 @@ def UNET_RR_right(X, X_list, channel, kernel_size=3,
         kernel_size: size of 2-d convolution kernels.
         stack_num: number of stacked recurrent convolutional layers.
         recur_num: number of recurrent iterations.
-        activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interfaces, e.g., 'ReLU'.
+        activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interfaces, e.g., 'ReLU'.
         unpool: True or 'bilinear' for Upsampling2D with bilinear interpolation.
                 'nearest' for Upsampling2D with nearest interpolation.
                 False for Conv2DTranspose + batch norm + activation.
@@ -175,7 +175,7 @@ def r2_unet_2d_base(input_tensor, filter_num, stack_num_down=2, stack_num_up=2, 
         stack_num_down: number of stacked recurrent convolutional layers per downsampling level/block.
         stack_num_down: number of stacked recurrent convolutional layers per upsampling level/block.
         recur_num: number of recurrent iterations.
-        activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interfaces, e.g., 'ReLU'.
+        activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interfaces, e.g., 'ReLU'.
         batch_norm: True for batch normalization.
         pool: True or 'max' for MaxPooling2D.
               'ave' for AveragePooling2D.
@@ -242,8 +242,8 @@ def r2_unet_2d(input_size, filter_num, n_labels,
         stack_num_down: number of stacked recurrent convolutional layers per downsampling level/block.
         stack_num_down: number of stacked recurrent convolutional layers per upsampling level/block.
         recur_num: number of recurrent iterations.
-        activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interfaces, e.g., 'ReLU'.
-        output_activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interface or 'Sigmoid'.
+        activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interfaces, e.g., 'ReLU'.
+        output_activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interface or 'Sigmoid'.
                            Default option is 'Softmax'.
                            if None is received, then linear activation is applied.     
         batch_norm: True for batch normalization.

@@ -1,7 +1,7 @@
 
 from __future__ import absolute_import
 
-from keras_unet_collection.activations import GELU, Snake
+from swiss_army_keras.activations import GELU, Snake
 from tensorflow import expand_dims
 from tensorflow.compat.v1 import image
 from tensorflow.keras.layers import MaxPooling2D, AveragePooling2D, UpSampling2D, Conv2DTranspose, GlobalAveragePooling2D
@@ -392,7 +392,7 @@ def CONV_output(X, n_labels, kernel_size=1, activation='Softmax', name='conv_out
         X: input tensor.
         n_labels: number of classification label(s).
         kernel_size: size of 2-d convolution kernels. Default is 1-by-1.
-        activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interface or 'Sigmoid'.
+        activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interface or 'Sigmoid'.
                     Default option is 'Softmax'.
                     if None is received, then linear activation is applied.
         name: prefix of the created keras layers.

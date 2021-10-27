@@ -1,11 +1,11 @@
 
 from __future__ import absolute_import
 
-from keras_unet_collection.layer_utils import *
-from keras_unet_collection.activations import GELU, Snake
-from keras_unet_collection._model_unet_2d import UNET_left, UNET_right
-from keras_unet_collection.transformer_layers import patch_extract, patch_embedding
-from keras_unet_collection._backbone_zoo import backbone_zoo, bach_norm_checker
+from swiss_army_keras.layer_utils import *
+from swiss_army_keras.activations import GELU, Snake
+from swiss_army_keras._model_unet_2d import UNET_left, UNET_right
+from swiss_army_keras.transformer_layers import patch_extract, patch_embedding
+from swiss_army_keras._backbone_zoo import backbone_zoo, bach_norm_checker
 
 import tensorflow as tf
 from tensorflow.keras.layers import Input
@@ -108,7 +108,7 @@ def transunet_2d_base(input_tensor, filter_num, stack_num_down=2, stack_num_up=2
                     The depth is expected as `len(filter_num)`.
         stack_num_down: number of convolutional layers per downsampling level/block. 
         stack_num_up: number of convolutional layers (after concatenation) per upsampling level/block.
-        activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interfaces, e.g., 'ReLU'.
+        activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interfaces, e.g., 'ReLU'.
         batch_norm: True for batch normalization.
         pool: True or 'max' for MaxPooling2D.
               'ave' for AveragePooling2D.
@@ -291,8 +291,8 @@ def transunet_2d(input_size, filter_num, n_labels, stack_num_down=2, stack_num_u
         n_labels: number of output labels.
         stack_num_down: number of convolutional layers per downsampling level/block. 
         stack_num_up: number of convolutional layers (after concatenation) per upsampling level/block.
-        activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interfaces, e.g., 'ReLU'.
-        output_activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interface or 'Sigmoid'.
+        activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interfaces, e.g., 'ReLU'.
+        output_activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interface or 'Sigmoid'.
                            Default option is 'Softmax'.
                            if None is received, then linear activation is applied.
         batch_norm: True for batch normalization.

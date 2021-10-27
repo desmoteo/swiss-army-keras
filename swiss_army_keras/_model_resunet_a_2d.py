@@ -1,8 +1,8 @@
 
 from __future__ import absolute_import
 
-from keras_unet_collection.layer_utils import *
-from keras_unet_collection.activations import GELU, Snake
+from swiss_army_keras.layer_utils import *
+from swiss_army_keras.activations import GELU, Snake
 
 from tensorflow.keras.layers import Input
 from tensorflow.keras.models import Model
@@ -24,7 +24,7 @@ def ResUNET_a_block(X, channel, kernel_size=3, dilation_num=1.0, activation='ReL
         kernel_size: size of 2-d convolution kernels.
         dilation_num: an iterable that defines dilation rates of convolutional layers.
                       stacks of conv2d is expected as `len(dilation_num)`.
-        activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interfaces, e.g., 'ReLU'.
+        activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interfaces, e.g., 'ReLU'.
         batch_norm: True for batch normalization, False otherwise.
         name: prefix of the created keras layers.
         
@@ -64,7 +64,7 @@ def ResUNET_a_right(X, X_list, channel, kernel_size=3, dilation_num=[1,],
         kernel_size: size of 2-d convolution kernels.
         dilation_num: an iterable that defines dilation rates of convolutional layers.
                       stacks of conv2d is expected as `len(dilation_num)`.
-        activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interfaces, e.g., 'ReLU'.
+        activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interfaces, e.g., 'ReLU'.
         unpool: True or 'bilinear' for Upsampling2D with bilinear interpolation.
                 'nearest' for Upsampling2D with nearest interpolation.
                 False for Conv2DTranspose + batch norm + activation.
@@ -118,7 +118,7 @@ def resunet_a_2d_base(input_tensor, filter_num, dilation_num,
                       Explicitly defining dilation rates for each down-/upsampling level.
         aspp_num_down: number of Atrous Spatial Pyramid Pooling (ASPP) layer filters after the last downsampling block.
         aspp_num_up: number of ASPP layer filters after the last upsampling block.                 
-        activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interfaces, e.g., 'ReLU'.
+        activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interfaces, e.g., 'ReLU'.
         batch_norm: True for batch normalization.
         unpool: True or 'bilinear' for Upsampling2D with bilinear interpolation.
                 'nearest' for Upsampling2D with nearest interpolation.
@@ -221,8 +221,8 @@ def resunet_a_2d(input_size, filter_num, dilation_num, n_labels,
         n_labels: number of output labels.
         aspp_num_down: number of Atrous Spatial Pyramid Pooling (ASPP) layer filters after the last downsampling block.
         aspp_num_up: number of ASPP layer filters after the last upsampling block.  
-        activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interfaces, e.g., 'ReLU'.
-        output_activation: one of the `tensorflow.keras.layers` or `keras_unet_collection.activations` interface or 'Sigmoid'.
+        activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interfaces, e.g., 'ReLU'.
+        output_activation: one of the `tensorflow.keras.layers` or `swiss_army_keras.activations` interface or 'Sigmoid'.
                            Default option is 'Softmax'.
                            if None is received, then linear activation is applied.
         batch_norm: True for batch normalization.

@@ -5,7 +5,7 @@ from tensorflow.keras.applications import *
 from tensorflow.keras.models import Model
 from tensorflow.python.framework.tensor_shape import as_dimension
 
-from keras_unet_collection.utils import freeze_model
+from swiss_army_keras.utils import freeze_model
 
 import tensorflow_hub as hub
 

@@ -10,13 +10,13 @@ The `tensorflow.keras` implementation of U-net, V-net, U-net++, UNET 3+, Attenti
 
 ----------
 
-`keras_unet_collection.models` contains functions that configure keras models with hyper-parameter options. 
+`swiss_army_keras.models` contains functions that configure keras models with hyper-parameter options. 
 
 * Pre-trained ImageNet backbones are supported for U-net, U-net++, UNET 3+, Attention U-net, and TransUNET.
 * Deep supervision is supported for U-net++, UNET 3+, and U^2-Net.
 * See the [User guide](https://github.com/yingkaisha/keras-unet-collection/blob/main/examples/user_guide_models.ipynb) for other options and use cases.
 
-| `keras_unet_collection.models` | Name | Reference |
+| `swiss_army_keras.models` | Name | Reference |
 |:---------------|:----------------|:----------------|
 | `unet_2d`      | U-net           | [Ronneberger et al. (2015)](https://link.springer.com/chapter/10.1007/978-3-319-24574-4_28) |
 | `vnet_2d`      | V-net (modified for 2-d inputs) | [Milletari et al. (2016)](https://arxiv.org/abs/1606.04797) |
@@ -33,22 +33,22 @@ The `tensorflow.keras` implementation of U-net, V-net, U-net++, UNET 3+, Attenti
 
 ----------
 
-` keras_unet_collection.base` contains functions that build the base architecture (i.e., without model heads) of Unet variants for model customization and debugging.
+` swiss_army_keras.base` contains functions that build the base architecture (i.e., without model heads) of Unet variants for model customization and debugging.
 
-| ` keras_unet_collection.base` | Notes |
+| ` swiss_army_keras.base` | Notes |
 |:-----------------------------------|:------|
 | `unet_2d_base`, `vnet_2d_base`, `unet_plus_2d_base`, `unet_3plus_2d_base`, `att_unet_2d_base`, `r2_unet_2d_base`, `resunet_a_2d_base`, `u2net_2d_base`, `transunet_2d_base`, `swin_unet_2d_base` | Functions that accept an input tensor and hyper-parameters of the corresponded model, and produce output tensors of the base architecture. |
 
 ----------
 
-`keras_unet_collection.activations` and `keras_unet_collection.losses` provide additional activation layers and loss functions.
+`swiss_army_keras.activations` and `swiss_army_keras.losses` provide additional activation layers and loss functions.
 
-| `keras_unet_collection.activations` | Name | Reference |
+| `swiss_army_keras.activations` | Name | Reference |
 |:--------|:----------------|:----------------|
 | `GELU`  | Gaussian Error Linear Units (GELU)   | [Hendrycks et al. (2016)](https://arxiv.org/abs/1606.08415) |
 | `Snake` | Snake activation                     | [Liu et al. (2020)](https://arxiv.org/abs/2006.08195) |
 
-| `keras_unet_collection.losses` | Name | Reference |
+| `swiss_army_keras.losses` | Name | Reference |
 |:----------------|:----------------|:----------------|
 | `dice`          | Dice loss                      | [Sudre et al. (2017)](https://link.springer.com/chapter/10.1007/978-3-319-67558-9_28) |
 | `tversky`       | Tversky loss                   | [Hashemi et al. (2018)](https://ieeexplore.ieee.org/abstract/document/8573779) |
@@ -64,7 +64,7 @@ The `tensorflow.keras` implementation of U-net, V-net, U-net++, UNET 3+, Attenti
 ```pip install keras-unet-collection```
 
 ```python
-from keras_unet_collection import models
+from swiss_army_keras import models
 # e.g. models.unet_2d(...)
 ```
 * **Note**: Currently supported backbone models are: `VGG[16,19]`, `ResNet[50,101,152]`, `ResNet[50,101,152]V2`, `DenseNet[121,169,201]`, and `EfficientNetB[0-7]`. See [Keras Applications](https://keras.io/api/applications/) for details. 
