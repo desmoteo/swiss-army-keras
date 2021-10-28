@@ -12,6 +12,7 @@ import numpy as np
 
 from skimage.transform import rescale, resize, downscale_local_mean
 
+from tqdm import tqdm
 
 # helper function for data visualization
 
@@ -31,15 +32,17 @@ def visualize(**images):
 
 class SegmentationAlbumentationsDataLoader:
 
-    def __init__(self, dataset_path, train_augmentations=None, val_augmentations=None, test_augmentations=None, images_dir='images', masks_dir='annotations', width=512, height=512, batch_size=16, num_classes=2, mask_downsample=None, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, label_shift=0):
+    def __init__(self, dataset_path, precache=False, train_augmentations=None, val_augmentations=None, test_augmentations=None, images_dir='images', masks_dir='annotations', width=512, height=512, batch_size=16, num_classes=2, mask_downsample=None, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, label_shift=0):
 
         self.ids = os.listdir(os.path.join(dataset_path, images_dir))
         self.num_classes = num_classes
-        #self.mask_ids = os.listdir(masks_dir)
+        # self.mask_ids = os.listdir(masks_dir)
         images_frames = [os.path.join(dataset_path, images_dir, image_id)
                          for image_id in self.ids]
         labels_frames = [os.path.join(dataset_path, masks_dir, image_id.split(
             image_id.split('.')[-1])[0]+'png') for image_id in self.ids]
+
+        self.precache = precache
 
         self.configs = {}
         self.images = images_frames
@@ -59,7 +62,7 @@ class SegmentationAlbumentationsDataLoader:
         self.batch_size = batch_size
 
         self.label_shift = label_shift
-        
+
         self.mask_downsample = mask_downsample
 
         self.augmentations = {}
@@ -97,39 +100,68 @@ class SegmentationAlbumentationsDataLoader:
         aug_img = aug_data["image"]
 
         aug_msk = aug_data["mask"][:, :, 0]
-        
+
         aug_img = aug_img.astype(np.float32)
 
         aug_img = aug_img/255.
 
-        if self.mask_downsample is not None:                                   
-            aug_msk = rescale(aug_msk, 1.0/self.mask_downsample, anti_aliasing=False, multichannel=False, preserve_range=True, order=0)
+        if self.mask_downsample is not None:
+            aug_msk = rescale(aug_msk, 1.0/self.mask_downsample, anti_aliasing=False,
+                              multichannel=False, preserve_range=True, order=0)
 
-        aug_msk = tf.keras.utils.to_categorical(aug_msk-self.label_shift, num_classes=self.num_classes)
-        
+        return aug_img, aug_msk.astype(np.uint8)
+
+    @tf.function(input_signature=[tf.TensorSpec(None, tf.uint8), tf.TensorSpec(None, tf.uint8), tf.TensorSpec(None, tf.string)])
+    def augment_data(self, image, label, set):
+
+        aug_img, aug_msk = tf.numpy_function(func=self.aug_function, inp=[
+                                             tf.cast(image, np.uint8), tf.cast(label, np.uint8), set], Tout=[tf.float32, tf.uint8])
+
         return aug_img, aug_msk
 
-    @tf.function(input_signature=[tf.TensorSpec(None, tf.string), tf.TensorSpec(None, tf.string), tf.TensorSpec(None, tf.string)])
-    def process_data(self, image, label, set):
+    def open_images(self, image, label):
         img = tf.image.decode_jpeg(tf.io.read_file(image), channels=3)
 
         lbl = tf.image.decode_png(tf.io.read_file(label), channels=1)
-        aug_img, aug_msk = tf.numpy_function(func=self.aug_function, inp=[
-                                             img, lbl, set], Tout=[tf.float32, tf.float32])
 
-        return aug_img, aug_msk, image
+        img = tf.cast(tf.image.resize(
+            img, [self.height, self.width]), np.uint8)
+        lbl = tf.cast(tf.image.resize(
+            lbl, [self.height, self.width]), np.uint8)
 
-    def set_shapes(self, img, label, path):
+        return img, lbl
+
+    def set_shapes(self, img, label):
         img.set_shape((self.width, self.height, 3))
-        # label.set_shape((self.width,self.height,self.num_classes))
+
+        if self.mask_downsample is None:
+            label.set_shape((self.width, self.height))
+        else:
+            label.set_shape((int(self.width/self.mask_downsample),
+                            int(self.height/self.mask_downsample)))
+
+        label = tf.cast(tf.one_hot(tf.cast(label-self.label_shift, tf.uint8),
+                                   self.num_classes), tf.float32)
         if self.mask_downsample is None:
             label.set_shape((self.width, self.height, self.num_classes))
         else:
-            label.set_shape((int(self.width/self.mask_downsample) , int(self.height/self.mask_downsample) , self.num_classes))
+            label.set_shape((int(self.width/self.mask_downsample),
+                            int(self.height/self.mask_downsample), self.num_classes))
         return img, label
 
     def prepare_dataset(self, dataset, set):
-        dataset = dataset.map(partial(self.process_data, set=set),
+
+        # Open and resize images
+        dataset = dataset.map(
+            self.open_images, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        dataset = dataset.prefetch(
+            tf.data.experimental.AUTOTUNE)
+        if self.precache:
+            dataset = dataset.cache()
+            for _ in tqdm(dataset):
+                pass
+        # augment data
+        dataset = dataset.map(partial(self.augment_data, set=set),
                               num_parallel_calls=tf.data.experimental.AUTOTUNE)
         dataset = dataset.map(
             self.set_shapes, num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -179,11 +211,10 @@ class SegmentationAlbumentationsDataLoader:
             )
             t = image[i]  # tf.cast(image[i], tf.uint8)
             ax = fig.add_subplot(num_images, 5, i+1, xticks=[], yticks=[])
-            #tf.numpy_function(func=ax.imshow, inp=[t], Tout=[])
+            # tf.numpy_function(func=ax.imshow, inp=[t], Tout=[])
             ax.imshow(image[i])
-            #ax.set_title(f"Label: {label[i]}")
+            # ax.set_title(f"Label: {label[i]}")
 
-            
     def show_results(self, model, num_images=4, set='test', output=None):
 
         # extract 1 batch from the dataset
@@ -191,12 +222,12 @@ class SegmentationAlbumentationsDataLoader:
 
         images = res[0]
         labels = res[1]
-        
+
         preds = model.predict([images])
 
         if output is not None:
             preds = preds[output]
-        
+
         fig = plt.figure(figsize=(22, 22))
         for i in range(num_images):
             visualize(
