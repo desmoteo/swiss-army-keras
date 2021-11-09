@@ -27,18 +27,18 @@ def symmetric_totflite(val):
     return val.numpy().astype(np.float32)
 
 
-def dummy_totflite(val):
+def ui8_totflite(val):
     return (val*255).numpy().astype(np.uint8)
 
 
 totflite_dict = {}
-totflite_dict[-1] = dummy_totflite
+totflite_dict[-1] = ui8_totflite
 totflite_dict[0] = standard_totflite
 totflite_dict[1] = symmetric_totflite
 
 
 class Quantizer():
-    def __init__(self, dataset, model, name, batches=1, normalization=0):
+    def __init__(self, dataset, model, name, batches=1):
         self.dataset = dataset
         self.model = model
         self.name = f'{name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}_'
@@ -46,7 +46,7 @@ class Quantizer():
 
         self.tflite_ui8_model = None
         self.tflite_f16_model = None
-        self.normalization = normalization
+        self.normalization = 0
 
     def quantize(self):
 

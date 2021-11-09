@@ -14,6 +14,18 @@ from skimage.transform import rescale, resize, downscale_local_mean
 
 from tqdm import tqdm
 
+from multiprocessing import Process, cpu_count
+
+from IronDomo import IDPBroker, IDPAsyncClient, IDPWorker
+
+import logging
+
+import dill
+
+import threading
+
+import time
+
 # helper function for data visualization
 
 
@@ -30,9 +42,91 @@ def visualize(**images):
     plt.show()
 
 
+class BrokerProcess(Process):
+    class Autorizer(object):
+        db = None
+
+        def __init__(self):
+            db = None
+
+        def callback(self, domain, key):
+            logging.warning('Autorizing: {0}, {1}'.format(domain, key))
+            return True
+
+    def __init__(self, clear_url='tcp://127.0.0.1:6555', curve_url='tcp://127.0.0.1:6556'):
+        super(BrokerProcess, self).__init__()
+        self.clear_url = clear_url
+        self.curve_url = curve_url
+
+    def run(self):
+        autorizer = BrokerProcess.Autorizer()
+        server_public = b"P+S690P{iVPfx<aFJwxfSY^ugFzjuWOnaIh!o7J<"
+        server_secret = b":$80ST.hxA5xL7c+@$3YTEohOR^GhrJ2$qzN@bR^"
+        self.broker = IDPBroker.IronDomoBroker(self.clear_url, self.curve_url, publisher_connection_string=None, verbose=False, credentials=(
+            server_public, server_secret), credentialsCallback=autorizer)
+        self.broker.bind()
+        self.broker.mediate()
+
+
+class WorkerProcess(Process):
+    class Workload(object):
+        pre = None
+
+        def __init__(self, count, augmentations_serialized, width, height, output_width, output_height):
+            self.count = count
+            self.augmentations = {}
+            self.augmentations['train'] = dill.loads(
+                augmentations_serialized['train'])
+            self.augmentations['val'] = dill.loads(
+                augmentations_serialized['val'])
+            self.augmentations['test'] = dill.loads(
+                augmentations_serialized['test'])
+            self.width = width
+            self.height = height
+            self.output_width = output_width
+            self.output_height = output_height
+
+        def do(self, request):
+
+            set = request[0].decode()
+            img = np.frombuffer(request[1], dtype=np.uint8).reshape(
+                (self.width, self.height, 3))
+            lbl = np.frombuffer(request[2], dtype=np.uint8).reshape(
+                (self.output_width, self.output_height))
+
+            data = {'image': img, 'mask': lbl}
+
+            aug_data = self.augmentations[set](**data)
+            return [aug_data['image'].data, aug_data['mask'].data]
+
+    def __init__(self, count, augmentations_serialized, width, height, output_width, output_height, clear_url='tcp://localhost:6555', service='augmentation'):
+        self.count = count
+        self.augmentations_serialized = augmentations_serialized
+        self.width = width
+        self.height = height
+        self.output_width = output_width
+        self.output_height = output_height
+        self.clear_url = clear_url
+        self.service = service
+        super(WorkerProcess, self).__init__()
+
+    def run(self):
+        import random as ra
+        import numpy as np
+        seed = (os.getpid() * int(time.time())) % 123456789
+        ra.seed(seed)
+        np.random.seed(seed)
+
+        workload = WorkerProcess.Workload(
+            self.count, self.augmentations_serialized, self.width, self.height, self.output_width, self.output_height)
+        self.worker = IDPWorker.IronDomoWorker(
+            self.clear_url, self.service.encode(), False, workload=workload)
+        self.worker.loop()
+
+
 class SegmentationAlbumentationsDataLoader:
 
-    def __init__(self, dataset_path, precache=False, train_augmentations=None, val_augmentations=None, test_augmentations=None, images_dir='images', masks_dir='annotations', width=512, height=512, batch_size=16, num_classes=2, mask_downsample=None, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, label_shift=0):
+    def __init__(self, dataset_path, precache=False, train_augmentations=None, val_augmentations=None, test_augmentations=None, images_dir='images', masks_dir='annotations', width=512, height=512, batch_size=16, num_classes=2, mask_downsample=1, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, label_shift=0, normalization_range=(0, 1), dinamic_range=255):
 
         self.ids = os.listdir(os.path.join(dataset_path, images_dir))
         self.num_classes = num_classes
@@ -49,8 +143,8 @@ class SegmentationAlbumentationsDataLoader:
         self.labels = labels_frames
         self.width = width
         self.height = height
-        self.width = width
-        self.height = height
+        self.output_width = int(width/mask_downsample)
+        self.output_height = int(height/mask_downsample)
 
         self.buffer_size = buffer_size
 
@@ -71,18 +165,59 @@ class SegmentationAlbumentationsDataLoader:
         self.augmentations['val'] = val_augmentations if val_augmentations else self.get_default_augmentation()
         self.augmentations['test'] = test_augmentations if test_augmentations else self.get_default_augmentation()
 
+        self.augmentations_serialized = {}
+        self.augmentations_serialized['train'] = dill.dumps(
+            self.augmentations['train'])
+        self.augmentations_serialized['val'] = dill.dumps(
+            self.augmentations['val'])
+        self.augmentations_serialized['test'] = dill.dumps(
+            self.augmentations['test'])
+
         self.datasets = {}
 
         self.datasets['train'] = None
         self.datasets['val'] = None
         self.datasets['test'] = None
 
+        self.normalization_range = normalization_range
+        self.dinamic_range = dinamic_range
+
         self.assert_dataset()
 
+        print('a')
+        self.broker = BrokerProcess()
+        print('b')
+        self.broker.daemon = True
+        self.broker.start()
+        print('c')
+
+        workers = []
+        # for i in range(4):
+        for i in range(int(cpu_count()/2)):
+            p = WorkerProcess(i, self.augmentations_serialized, self.width,
+                              self.height, self.output_width, self.output_height)
+            p.daemon = True
+            p.start()
+
+            workers.append(p)
+
+        self.client = IDPAsyncClient.IronDomoAsyncClient(
+            "tcp://localhost:6555", False, identity="DatasetLoader")
+
+    def __getstate__(self):
+        self_dict = self.__dict__.copy()
+        del self_dict['pool']
+        return self_dict
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
     def get_default_augmentation(self):
-        transform = [albu.Resize(
-            self.width, self.height, cv2.INTER_CUBIC, p=1), albu.HorizontalFlip(p=0.5), ]
-        return albu.Compose(transform)
+        # transform = [albu.Resize(
+        #    self.width, self.height, cv2.INTER_CUBIC, p=1), albu.HorizontalFlip(p=0.5), ]
+        #transform = albu.Compose(transform)
+        transform = None
+        return transform
 
     def assert_dataset(self):
         assert len(self.images) == len(self.labels)
@@ -99,23 +234,37 @@ class SegmentationAlbumentationsDataLoader:
 
         aug_img = aug_data["image"]
 
-        aug_msk = aug_data["mask"][:, :, 0]
+        aug_msk = aug_data["mask"]  # [:, :, 0]
 
-        aug_img = aug_img.astype(np.float32)
+        return aug_img, aug_msk.astype(np.uint8)
 
-        aug_img = aug_img/255.
+    def aug_function_parallel(self, images, masks, set):
 
-        if self.mask_downsample is not None:
-            aug_msk = rescale(aug_msk, 1.0/self.mask_downsample, anti_aliasing=False,
-                              multichannel=False, preserve_range=True, order=0)
+        for i in range(images.shape[0]):
+
+            self.client.send(b'augmentation', [
+                             set, images[i].data, masks[i].data])
+
+        aug_img = np.empty_like(images)
+        aug_msk = np.empty_like(masks)
+
+        for i in range(images.shape[0]):
+
+            aug_data = self.client.recv()
+
+            aug_img[i] = np.frombuffer(aug_data[0], dtype=np.uint8).reshape(
+                self.width, self.height, 3)  # aug_data["image"]
+            aug_msk[i] = np.frombuffer(aug_data[1], dtype=np.uint8).reshape(
+                self.output_width, self.output_height)  # aug_data["image"]
 
         return aug_img, aug_msk.astype(np.uint8)
 
     @tf.function(input_signature=[tf.TensorSpec(None, tf.uint8), tf.TensorSpec(None, tf.uint8), tf.TensorSpec(None, tf.string)])
     def augment_data(self, image, label, set):
 
-        aug_img, aug_msk = tf.numpy_function(func=self.aug_function, inp=[
-                                             tf.cast(image, np.uint8), tf.cast(label, np.uint8), set], Tout=[tf.float32, tf.uint8])
+        aug_img, aug_msk = tf.numpy_function(func=self.aug_function_parallel, inp=[
+                                             image, label, set], Tout=[tf.uint8, tf.uint8])
+        # tf.cast(image, np.uint8), tf.cast(label, np.uint8), set], Tout=[tf.float32, tf.uint8])
 
         return aug_img, aug_msk
 
@@ -127,26 +276,31 @@ class SegmentationAlbumentationsDataLoader:
         img = tf.cast(tf.image.resize(
             img, [self.height, self.width]), np.uint8)
         lbl = tf.cast(tf.image.resize(
-            lbl, [self.height, self.width]), np.uint8)
+            lbl, [int(self.height/self.mask_downsample), int(self.width/self.mask_downsample)]), np.uint8)[:, :, 0]
 
         return img, lbl
 
     def set_shapes(self, img, label):
+
         img.set_shape((self.width, self.height, 3))
 
-        if self.mask_downsample is None:
-            label.set_shape((self.width, self.height))
-        else:
-            label.set_shape((int(self.width/self.mask_downsample),
-                            int(self.height/self.mask_downsample)))
+        label.set_shape((int(self.width/self.mask_downsample),
+                        int(self.height/self.mask_downsample)))
+
+        return img, label
+
+    def normalize(self, img, label):
+        img = tf.cast(img, tf.float32)
+        img = (self.normalization_range[1] - self.normalization_range[0]
+               )*img/self.dinamic_range + self.normalization_range[0]
+
+        img.set_shape((self.batch_size, self.width, self.height, 3))
 
         label = tf.cast(tf.one_hot(tf.cast(label-self.label_shift, tf.uint8),
                                    self.num_classes), tf.float32)
-        if self.mask_downsample is None:
-            label.set_shape((self.width, self.height, self.num_classes))
-        else:
-            label.set_shape((int(self.width/self.mask_downsample),
-                            int(self.height/self.mask_downsample), self.num_classes))
+
+        label.set_shape((self.batch_size,  int(self.width/self.mask_downsample),
+                        int(self.height/self.mask_downsample), self.num_classes))
         return img, label
 
     def prepare_dataset(self, dataset, set):
@@ -161,15 +315,18 @@ class SegmentationAlbumentationsDataLoader:
             for _ in tqdm(dataset):
                 pass
         # augment data
-        dataset = dataset.map(partial(self.augment_data, set=set),
-                              num_parallel_calls=tf.data.experimental.AUTOTUNE)
         dataset = dataset.map(
             self.set_shapes, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-        dataset = dataset.prefetch(
-            tf.data.experimental.AUTOTUNE)
         dataset = dataset.shuffle(
             self.batch_size*self.buffer_size, reshuffle_each_iteration=True)
-        dataset = dataset.batch(self.batch_size, drop_remainder=True)
+
+        dataset = dataset.batch(self.batch_size, drop_remainder=True).prefetch(
+            tf.data.experimental.AUTOTUNE)
+        if self.augmentations[set] is not None:
+            dataset = dataset.map(partial(self.augment_data, set=set),
+                                  num_parallel_calls=1)  # tf.data.experimental.AUTOTUNE)
+        dataset = dataset.map(
+            self.normalize, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         return dataset
 
     def build_datasets(self):
