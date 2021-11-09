@@ -1,4 +1,3 @@
-
 from __future__ import absolute_import
 
 from tensorflow.keras.applications import *
@@ -35,14 +34,14 @@ keras_layer_cadidates = {
     'EfficientNetB5': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'top_activation'),
     'EfficientNetB6': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'top_activation'),
     'EfficientNetB7': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'top_activation'),
-    'EfficientNetLiteB0': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'top_activation'),
-    'EfficientNetLiteB1': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'top_activation'),
-    'EfficientNetLiteB2': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'top_activation'),
-    'EfficientNetLiteB3': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'top_activation'),
-    'EfficientNetLiteB4': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'top_activation'),
-    'EfficientNetLiteB5': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'top_activation'),
-    'EfficientNetLiteB6': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'top_activation'),
-    'EfficientNetLiteB7': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'top_activation'),
+    'EfficientNetLiteB0': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'block7a_activation'),
+    'EfficientNetLiteB1': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'block7a_activation'),
+    'EfficientNetLiteB2': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'block7a_activation'),
+    'EfficientNetLiteB3': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'block7a_activation'),
+    'EfficientNetLiteB4': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'block7a_activation'),
+    'EfficientNetLiteB5': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'block7a_activation'),
+    'EfficientNetLiteB6': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'block7a_activation'),
+    'EfficientNetLiteB7': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'block7a_activation'),
     
     }
 
@@ -68,6 +67,14 @@ keras_kwargs = {
     'EfficientNetB5': {},
     'EfficientNetB6': {},
     'EfficientNetB7': {},
+    'EfficientNetLiteB0': {},
+    'EfficientNetLiteB1': {},
+    'EfficientNetLiteB2': {},
+    'EfficientNetLiteB3': {},
+    'EfficientNetLiteB4': {},
+    'EfficientNetLiteB5': {},
+    'EfficientNetLiteB6': {},
+    'EfficientNetLiteB7': {},
 }
 
 
