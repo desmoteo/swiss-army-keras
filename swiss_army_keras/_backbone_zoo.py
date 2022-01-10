@@ -39,10 +39,6 @@ keras_layer_cadidates = {
     'EfficientNetLiteB2': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'block7a_activation'),
     'EfficientNetLiteB3': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'block7a_activation'),
     'EfficientNetLiteB4': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'block7a_activation'),
-    'EfficientNetLiteB5': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'block7a_activation'),
-    'EfficientNetLiteB6': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'block7a_activation'),
-    'EfficientNetLiteB7': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'block7a_activation'),
-    
     }
 
 keras_kwargs = {
@@ -72,9 +68,6 @@ keras_kwargs = {
     'EfficientNetLiteB2': {},
     'EfficientNetLiteB3': {},
     'EfficientNetLiteB4': {},
-    'EfficientNetLiteB5': {},
-    'EfficientNetLiteB6': {},
-    'EfficientNetLiteB7': {},
 }
 
 

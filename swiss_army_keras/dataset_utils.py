@@ -255,7 +255,7 @@ class SegmentationAlbumentationsDataLoader:
             aug_img[i] = np.frombuffer(aug_data[0], dtype=np.uint8).reshape(
                 self.width, self.height, 3)  # aug_data["image"]
             aug_msk[i] = np.frombuffer(aug_data[1], dtype=np.uint8).reshape(
-                self.output_width, self.output_height)  # aug_data["image"]
+                self.width, self.height)  # aug_data["image"]
 
         return aug_img, aug_msk.astype(np.uint8)
 
