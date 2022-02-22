@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+import tensorflow as tf
+
 from tensorflow.keras.applications import *
 from efficientnet_lite import *
 from tensorflow.keras.models import Model
@@ -41,9 +43,39 @@ keras_layer_cadidates = {
     'EfficientNetLiteB4': ('block2a_expand_activation', 'block3a_expand_activation', 'block4a_expand_activation', 'block6a_expand_activation', 'block7a_activation'),
     }
 
+
+keras_normalization_layers = {
+    'MobileNetV2': tf.keras.applications.mobilenet_v2.preprocess_input,
+    'MobileNetV3Large': tf.keras.applications.mobilenet_v3.preprocess_input,
+    'VGG16': tf.keras.applications.vgg16.preprocess_input,
+    'VGG19': tf.keras.applications.vgg19.preprocess_input,
+    'ResNet50': tf.keras.applications.resnet.preprocess_input,
+    'ResNet101': tf.keras.applications.resnet.preprocess_input,
+    'ResNet152': tf.keras.applications.resnet.preprocess_input,
+    'ResNet50V2': tf.keras.applications.resnet.preprocess_input,
+    'ResNet101V2': tf.keras.applications.resnet.preprocess_input,
+    'ResNet152V2': tf.keras.applications.resnet.preprocess_input,
+    'DenseNet121': tf.keras.applications.densenet.preprocess_input,
+    'DenseNet169': tf.keras.applications.densenet.preprocess_input,
+    'DenseNet201': tf.keras.applications.densenet.preprocess_input,
+    'EfficientNetB0': tf.keras.applications.efficientnet.preprocess_input,
+    'EfficientNetB1': tf.keras.applications.efficientnet.preprocess_input,
+    'EfficientNetB2': tf.keras.applications.efficientnet.preprocess_input,
+    'EfficientNetB3': tf.keras.applications.efficientnet.preprocess_input,
+    'EfficientNetB4': tf.keras.applications.efficientnet.preprocess_input,
+    'EfficientNetB5': tf.keras.applications.efficientnet.preprocess_input,
+    'EfficientNetB6': tf.keras.applications.efficientnet.preprocess_input,
+    'EfficientNetB7': tf.keras.applications.efficientnet.preprocess_input,
+    'EfficientNetLiteB0': get_preprocessing_layer(),
+    'EfficientNetLiteB1': get_preprocessing_layer(),
+    'EfficientNetLiteB2': get_preprocessing_layer(),
+    'EfficientNetLiteB3': get_preprocessing_layer(),
+    'EfficientNetLiteB4': get_preprocessing_layer(),
+}
+
 keras_kwargs = {
     'MobileNetV2' : {},
-    'MobileNetV3Large' : {'minimalistic' : True},
+    'MobileNetV3Large': {'minimalistic': True},
     'VGG16': {},
     'VGG19': {},
     'ResNet50': {},
@@ -182,4 +214,5 @@ def backbone_zoo(backbone_name, weights, input_tensor, depth, freeze_backbone, f
     if freeze_backbone:
         model = freeze_model(model, freeze_batch_norm=freeze_batch_norm)
     
+    model.preprocessing = keras_normalization_layers[backbone_name]
     return model

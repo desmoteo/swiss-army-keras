@@ -1,5 +1,6 @@
 
 import numpy as np
+
 from PIL import Image
 
 def dummy_loader(model_path):
@@ -93,4 +94,25 @@ def freeze_model(model, freeze_batch_norm=False):
                 layer.trainable = False
     return model
 
+
+def unfreeze_model(model, unfreeze_batch_norm=False):
+    '''
+    freeze a keras model
+    
+    Input
+    ----------
+        model: a keras model
+        freeze_batch_norm: False for not freezing batch notmalization layers
+    '''
+    if unfreeze_batch_norm:
+        for layer in model.layers:
+            layer.trainable = True
+    else:
+        from tensorflow.keras.layers import BatchNormalization
+        for layer in model.layers:
+            if isinstance(layer, BatchNormalization):
+                layer.trainable = False
+            else:
+                layer.trainable = True
+    return model
 

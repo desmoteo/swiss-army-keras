@@ -1,5 +1,8 @@
 
 from __future__ import absolute_import
+from multiprocessing.spawn import prepare
+
+from sklearn import preprocessing
 
 from swiss_army_keras.layer_utils import *
 from swiss_army_keras.activations import GELU, Snake
@@ -92,13 +95,13 @@ def DilatedSpatialPyramidPooling(dspp_input, atrous_rates):
 def deeplab_v3_plus(input_tensor, n_labels, filter_num_down=[64, 128, 256, 512, 1024],
                     deep_layer=5, shallow_layer=2, atrous_rates=[6, 12, 18],
                     stack_num_down=2, stack_num_up=1, activation='ReLU', batch_norm=False, pool=True, unpool=True,
-                    backbone=None, weights='imagenet', freeze_backbone=True, freeze_batch_norm=True, name='unet3plus'):
+                    backbone=None, weights='imagenet', freeze_backbone=True, freeze_batch_norm=True, name='deeplab_v3_plus'):
     '''
     The base of UNET 3+ with an optional ImagNet-trained backbone.
 
     unet_3plus_2d_base(input_tensor, filter_num_down, filter_num_skip, filter_num_aggregate, 
                        stack_num_down=2, stack_num_up=1, activation='ReLU', batch_norm=False, pool=True, unpool=True, 
-                       backbone=None, weights='imagenet', freeze_backbone=True, freeze_batch_norm=True, name='unet3plus')
+                       backbone=None, weights='imagenet', freeze_backbone=True, freeze_batch_norm=True, name='deeplab_v3_plus')
 
     ----------
     Huang, H., Lin, L., Tong, R., Hu, H., Zhang, Q., Iwamoto, Y., Han, X., Chen, Y.W. and Wu, J., 2020. 
@@ -178,6 +181,8 @@ def deeplab_v3_plus(input_tensor, n_labels, filter_num_down=[64, 128, 256, 512, 
                           pool=pool, batch_norm=batch_norm, name='{}_down{}'.format(name, i+1))
             X_encoder.append(X)
 
+        preprocessing = dummy_preprocessing
+
     else:
         # handling VGG16 and VGG19 separately
         if 'VGG' in backbone:
@@ -187,6 +192,8 @@ def deeplab_v3_plus(input_tensor, n_labels, filter_num_down=[64, 128, 256, 512, 
             X_encoder = backbone_([input_tensor, ])
             depth_encode = len(X_encoder)
 
+            preprocessing = backbone_.preprocessing
+
         # for other backbones
         else:
             backbone_ = backbone_zoo(
@@ -194,6 +201,8 @@ def deeplab_v3_plus(input_tensor, n_labels, filter_num_down=[64, 128, 256, 512, 
             # collecting backbone feature maps
             X_encoder = backbone_([input_tensor, ])
             depth_encode = len(X_encoder) + 1
+
+            preprocessing = backbone_.preprocessing
 
     x = DilatedSpatialPyramidPooling(X_encoder[deep_layer-1], atrous_rates)
 
@@ -218,13 +227,17 @@ def deeplab_v3_plus(input_tensor, n_labels, filter_num_down=[64, 128, 256, 512, 
     )(x)
     model_output = Conv2D(n_labels, kernel_size=(1, 1), padding="same")(x)
 
-    return Model([input_tensor,], [model_output,])
+    m = Model([input_tensor, ], [model_output, ])
+
+    m.preprocessing = preprocessing
+
+    return m
 
 
 def deeplab_v3_plus_lite(input_tensor, n_labels, filter_num_down=[64, 128, 256, 512, 1024],
-                    deep_layer=5, shallow_layer=2, atrous_rates=[6, 12, 18],
-                    stack_num_down=2, stack_num_up=1, activation='ReLU', batch_norm=False, pool=True, unpool=True,
-                    backbone=None, weights='imagenet', freeze_backbone=True, freeze_batch_norm=True, name='unet3plus'):
+                         deep_layer=5, shallow_layer=2, atrous_rates=[6, 12, 18],
+                         stack_num_down=2, stack_num_up=1, activation='ReLU', batch_norm=False, pool=True, unpool=True,
+                         backbone=None, weights='imagenet', freeze_backbone=True, freeze_batch_norm=True, name='deeplab_v3_plus_lite'):
     '''
     The base of UNET 3+ with an optional ImagNet-trained backbone.
 
@@ -310,6 +323,8 @@ def deeplab_v3_plus_lite(input_tensor, n_labels, filter_num_down=[64, 128, 256, 
                           pool=pool, batch_norm=batch_norm, name='{}_down{}'.format(name, i+1))
             X_encoder.append(X)
 
+        preprocessing = dummy_preprocessing
+
     else:
         # handling VGG16 and VGG19 separately
         if 'VGG' in backbone:
@@ -319,6 +334,8 @@ def deeplab_v3_plus_lite(input_tensor, n_labels, filter_num_down=[64, 128, 256, 
             X_encoder = backbone_([input_tensor, ])
             depth_encode = len(X_encoder)
 
+            preprocessing = backbone_.preprocessing
+
         # for other backbones
         else:
             backbone_ = backbone_zoo(
@@ -326,6 +343,8 @@ def deeplab_v3_plus_lite(input_tensor, n_labels, filter_num_down=[64, 128, 256, 
             # collecting backbone feature maps
             X_encoder = backbone_([input_tensor, ])
             depth_encode = len(X_encoder) + 1
+
+            preprocessing = backbone_.preprocessing
 
     x = DilatedSpatialPyramidPooling(X_encoder[deep_layer-1], atrous_rates)
 
@@ -350,4 +369,8 @@ def deeplab_v3_plus_lite(input_tensor, n_labels, filter_num_down=[64, 128, 256, 
     )(x)"""
     model_output = Conv2D(n_labels, kernel_size=(1, 1), padding="same")(x)
 
-    return Model([input_tensor,], [model_output,])
+    m = Model([input_tensor, ], [model_output, ])
+
+    m.preprocessing = preprocessing
+
+    return m

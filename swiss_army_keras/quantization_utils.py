@@ -38,10 +38,14 @@ totflite_dict[1] = symmetric_totflite
 
 
 class Quantizer():
-    def __init__(self, dataset, model, name, batches=1):
+    def __init__(self, dataset, model, name, append_datetime=True, batches=1):
         self.dataset = dataset
         self.model = model
-        self.name = f'{name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}_'
+        if append_datetime:
+            self.name = f'{name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}_'
+        else:
+            self.name = name + '_'
+        self.saved_model_dirname = ''
         self.batches = batches
 
         self.tflite_ui8_model = None
@@ -58,12 +62,17 @@ class Quantizer():
                 for val in vals:
                     yield [tf.expand_dims(tf.cast(val, tf.float32), axis=0)]
 
-        self.model.trainable = False
-
         if isinstance(self.model, str):
-            converter = tf.lite.TFLiteConverter.from_saved_model(self.model)
+            loaded_model = tf.keras.models.load_model(
+                self.model, compile=False)
+            loaded_model.trainable = False
+            converter = tf.lite.TFLiteConverter.from_keras_model(loaded_model)
+            self.saved_model_dirname = self.model
         else:
+            self.model.trainable = False
             converter = tf.lite.TFLiteConverter.from_keras_model(self.model)
+            self.saved_model_dirname = self.name + 'saved_model'
+
         converter.optimizations = [tf.lite.Optimize.DEFAULT]
         converter.representative_dataset = representative_data_gen
         # Ensure that if any ops can't be quantized, the converter throws an error
@@ -79,9 +88,17 @@ class Quantizer():
             f.write(self.tflite_ui8_model)
 
         if isinstance(self.model, str):
-            converter = tf.lite.TFLiteConverter.from_saved_model(self.model)
+            loaded_model = tf.keras.models.load_model(
+                self.model,
+                compile=False)
+            loaded_model.trainable = False
+            converter = tf.lite.TFLiteConverter.from_keras_model(loaded_model)
+            self.saved_model_dirname = self.model
         else:
+            self.model.trainable = False
             converter = tf.lite.TFLiteConverter.from_keras_model(self.model)
+            self.saved_model_dirname = self.name + 'saved_model'
+
         converter.optimizations = [tf.lite.Optimize.DEFAULT]
         converter.target_spec.supported_types = [tf.float16]
 
@@ -90,6 +107,25 @@ class Quantizer():
 
         with open(f'{self.name}f16.tflite', 'wb') as f:
             f.write(self.tflite_f16_model)
+
+        '''params = tf.experimental.tensorrt.ConversionParams(
+            precision_mode='INT8',
+            maximum_cached_engines=1,
+            use_calibration=True)
+        converter = tf.experimental.tensorrt.Converter(
+            input_saved_model_dir=self.saved_model_dirname, conversion_params=params)
+
+        converter.convert(calibration_input_fn=representative_data_gen)
+        converter.save(self.name + 'tensorrt_ui8')
+
+        params = tf.experimental.tensorrt.ConversionParams(
+            precision_mode='FP16',
+            maximum_cached_engines=4)
+        converter = tf.experimental.tensorrt.Converter(
+            input_saved_model_dir=self.saved_model_dirname, conversion_params=params)
+
+        converter.convert()
+        converter.save(self.name + 'tensorrt_f16')'''
 
     def vizualize_ui8_results(self, num_images):
 

@@ -416,3 +416,8 @@ def CONV_output(X, n_labels, kernel_size=1, activation='Softmax', name='conv_out
             
     return X
 
+
+
+
+def dummy_preprocessing(x):
+    return x
