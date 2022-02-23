@@ -92,10 +92,7 @@ class TrainingDriver():
                 key_names = ['loss', 'acc', 'iou']
                 for k in key_names:
                     legend = []
-                    logging.warning(k)
                     for metric in model_history.history:
-                        logging.warning(metric)
-                        logging.warning(type(metric))
                         if k.upper() in str(metric).upper():
                             plt.plot(model_history.history[metric])
                             legend.append(metric)
