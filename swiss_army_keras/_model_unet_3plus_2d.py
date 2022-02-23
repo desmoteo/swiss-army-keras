@@ -209,8 +209,7 @@ def unet_3plus_2d_base(input_tensor, filter_num_down, filter_num_skip, filter_nu
 
     m = X_decoder
 
-    m.preprocessing = preprocessing
-    return m
+    return m, preprocessing
 
 
 def unet_3plus_2d(input_size, n_labels, filter_num_down, filter_num_skip='auto', filter_num_aggregate='auto',
@@ -311,12 +310,12 @@ def unet_3plus_2d(input_size, n_labels, filter_num_down, filter_num_skip='auto',
 
     IN = Input(input_size)
 
-    X_decoder = unet_3plus_2d_base(IN, filter_num_down, filter_num_skip, filter_num_aggregate,
+    X_decoder, preprocessing = unet_3plus_2d_base(IN, filter_num_down, filter_num_skip, filter_num_aggregate,
                                    stack_num_down=stack_num_down, stack_num_up=stack_num_up, activation=activation,
                                    batch_norm=batch_norm, pool=pool, unpool=unpool,
                                    backbone=backbone, weights=weights, freeze_backbone=freeze_backbone,
                                    freeze_batch_norm=freeze_batch_norm, name=name)
-    preprocessing = X_decoder.preprocessing
+    #preprocessing = (0, 255)#X_decoder.preprocessing
 
     X_decoder = X_decoder[::-1]
 
