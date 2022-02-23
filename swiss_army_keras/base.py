@@ -15,3 +15,4 @@ except:
     print('Cannot load _model_transunet_2d')
 from swiss_army_keras._model_swin_unet_2d import swin_unet_2d_base
 from swiss_army_keras._model_deeplab_v3_plus import deeplab_v3_plus
+from swiss_army_keras._model_classifier import classifier

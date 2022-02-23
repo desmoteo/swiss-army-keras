@@ -8,6 +8,26 @@ from swiss_army_keras.utils import unfreeze_model
 from swiss_army_keras.quantization_utils import Quantizer
 
 
+class ModelBuilder:
+
+    def __init__(self, width, height, channels):
+        self.width = width
+        self.height = height
+        self.channels = channels
+
+    def build(self, model):
+
+        input_tensor = tf.keras.layers.Input(
+            shape=(self.width, self.height, self.channels))
+
+        out = model(input_tensor)
+        res = tf.keras.models.Model([input_tensor, ], out)
+        res.preprocessing = model.preprocessing
+        res.summary()
+
+        return res
+
+
 class TrainingDriver():
 
     def __init__(self, model, model_name, optimizer, loss, metrics, train_set, val_set, test_set, epochs, unfreezed_epochs=-1, callbacks=[], quant_batches=1):
@@ -29,7 +49,7 @@ class TrainingDriver():
 
         self.logsname = 'logs_'+model_name+self.datestr
         self.checkpoint_name = model_name + self.datestr + '.h5'
-        self.quantizer_name = model_name + self.datestr 
+        self.quantizer_name = model_name + self.datestr
 
         self.callbacks.append(
             tf.keras.callbacks.TensorBoard(
@@ -65,7 +85,7 @@ class TrainingDriver():
                                        callbacks=self.callbacks,
                                        )
 
-        if self.unfreezed_epochs >= 0:
+        if self.unfreezed_epochs > 0:
 
             logging.warning('Unfreezing Model')
 

@@ -61,7 +61,7 @@ class BrokerProcess(Process):
             logging.warning('Autorizing: {0}, {1}'.format(domain, key))
             return True
 
-    def __init__(self, clear_url='ipc:///tmp/broker-clear', curve_url='ipc:///tmp/broker-curve'):
+    def __init__(self, clear_url='tcp://127.0.0.1:4445', curve_url='tcp://127.0.0.1:4446'):
         super(BrokerProcess, self).__init__()
         self.clear_url = clear_url
         self.curve_url = curve_url
@@ -80,7 +80,7 @@ class WorkerProcess(Process):
     class Workload(object):
         pre = None
 
-        def __init__(self, count, augmentations_serialized, width, height, output_width, output_height):
+        def __init__(self, count, augmentations_serialized, width, height, output_width, output_height, mode='segmentation'):
             self.count = count
             self.augmentations = {}
             self.augmentations['train'] = dill.loads(
@@ -94,13 +94,15 @@ class WorkerProcess(Process):
             self.output_width = output_width
             self.output_height = output_height
 
+            self.mode = mode
+
         def do(self, request):
 
             dset = request[0].decode()
             img = np.frombuffer(request[1], dtype=np.uint8).reshape(
                 (self.width, self.height, 3))
 
-            if len(request) == 3:
+            if self.mode == 'segmentation':
                 lbl = np.frombuffer(request[2], dtype=np.uint8).reshape(
                     (self.output_width, self.output_height))
 
@@ -108,14 +110,16 @@ class WorkerProcess(Process):
 
                 aug_data = self.augmentations[dset](**data)
                 return [aug_data['image'].data, aug_data['mask'].data]
-            else:
+            elif self.mode == 'classification':
 
                 data = {'image': img}
 
-                aug_data = self.augmentations[dset](**data)
-                return [aug_data['image'].data]
+                label = request[2]
 
-    def __init__(self, count, augmentations_serialized, width, height, output_width, output_height, clear_url='ipc:///tmp/broker-clear', service='augmentation'):
+                aug_data = self.augmentations[dset](**data)
+                return [aug_data['image'].data, label]
+
+    def __init__(self, count, augmentations_serialized, width, height, output_width, output_height, clear_url='tcp://127.0.0.1:4445', service='augmentation', mode='segmentation'):
         self.count = count
         self.augmentations_serialized = augmentations_serialized
         self.width = width
@@ -124,6 +128,7 @@ class WorkerProcess(Process):
         self.output_height = output_height
         self.clear_url = clear_url
         self.service = service
+        self.mode = mode
         super(WorkerProcess, self).__init__()
 
     def run(self):
@@ -134,11 +139,10 @@ class WorkerProcess(Process):
         np.random.seed(seed)
 
         workload = WorkerProcess.Workload(
-            self.count, self.augmentations_serialized, self.width, self.height, self.output_width, self.output_height)
+            self.count, self.augmentations_serialized, self.width, self.height, self.output_width, self.output_height, mode=self.mode)
         self.worker = IDPWorker.IronDomoWorker(
             self.clear_url, self.service.encode(), False, workload=workload, identity=f'{self.service}_{self.count}')
         self.worker.loop()
-
 
 class SegmentationAlbumentationsDataLoader:
 
@@ -442,7 +446,7 @@ class SegmentationAlbumentationsDataLoader:
 
 class ClassificationAlbumentationsDataLoader:
 
-    def __init__(self, dataset_path, precache=False, train_augmentations=None, val_augmentations=None, test_augmentations=None, width=512, height=512, batch_size=16, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, normalization=(0, 1), dinamic_range=255):
+    def __init__(self, dataset_path, precache=False, train_augmentations=None, val_augmentations=None, test_augmentations=None, width=128, height=128, batch_size=16, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, normalization=(0, 1), dinamic_range=255):
 
         self.data_root = pathlib.Path(dataset_path)
 
@@ -551,14 +555,14 @@ class ClassificationAlbumentationsDataLoader:
         # for i in range(4):
         for i in range(int(cpu_count()/2)):
             p = WorkerProcess(i, self.augmentations_serialized, self.width,
-                              self.height, 0, 0)
+                              self.height, 0, 0, mode='classification')
             p.daemon = True
             p.start()
 
             workers.append(p)
 
         self.client = IDPAsyncClient.IronDomoAsyncClient(
-            "ipc:///tmp/broker-clear", False, identity="DatasetLoader")
+            "tcp://127.0.0.1:4445", False, identity="DatasetLoader")
 
     def __getstate__(self):
         self_dict = self.__dict__.copy()
@@ -593,14 +597,14 @@ class ClassificationAlbumentationsDataLoader:
     def __len__(self):
         return len(self.files_ds)
 
-    def aug_function_parallel(self, images, dset):
+    def aug_function_parallel(self, images, labels, dset):
 
         for i in range(images.shape[0]):
-
             self.client.send(b'augmentation', [
-                             dset, images[i].data])
+                             dset, images[i].data, labels[i].data])
 
         aug_img = np.empty_like(images)
+        aug_label = np.empty_like(labels)
 
         for i in range(images.shape[0]):
 
@@ -608,16 +612,17 @@ class ClassificationAlbumentationsDataLoader:
 
             aug_img[i] = np.frombuffer(aug_data[0], dtype=np.uint8).reshape(
                 self.width, self.height, 3)  # aug_data["image"]
+            aug_label[i] = np.frombuffer(aug_data[1], dtype=np.int32)
 
-        return aug_img
+        return aug_img, aug_label
 
     @tf.function(input_signature=[tf.TensorSpec(None, tf.uint8), tf.TensorSpec(None, tf.int32), tf.TensorSpec(None, tf.string)])
     def augment_data(self, image, label, dset):
 
-        aug_img = tf.numpy_function(func=self.aug_function_parallel, inp=[
-            image, dset], Tout=[tf.uint8])[0]
+        aug_img, aug_label = tf.numpy_function(func=self.aug_function_parallel, inp=[
+            image, label, dset], Tout=[tf.uint8, tf.int32])
 
-        return aug_img, label
+        return aug_img, aug_label
 
     def open_images(self, image, label):
         img = tf.image.decode_jpeg(tf.io.read_file(image), channels=3)
@@ -683,7 +688,6 @@ class ClassificationAlbumentationsDataLoader:
 
         def process_path(file_path):
             intermedio = tf.strings.split(file_path, os.sep)[-2]
-            print(f'intermedio {intermedio}')
             #lbl = tf.cast(self.classes_map[intermedio], tf.float32)
             lbl = tf.cast(self.lookup_table.lookup(intermedio), tf.int32)
             #lbl = tf.strings.split(file_path, os.sep)[-2]
@@ -752,6 +756,7 @@ class ClassificationAlbumentationsDataLoader:
         if output is not None:
             preds = preds[output]
 
+        fig = plt.figure(figsize=(22, 22))
         for i in range(num_images):
             image = (images[i] - self.normalized_dynamic_range[0]) * \
                 255.0 / \
@@ -772,9 +777,9 @@ class ClassificationAlbumentationsDataLoader:
             refdraw.rectangle(shape, (0, 0, 0))
             #draw.text((0, 0), str(res[1][i].numpy()),(255,255,255), font=font)
             preddraw.text((0, 0), self.reverse_classes_map[np.argmax(
-                preds[i].numpy(), axis=-1)], (255, 255, 255), font=font)
+                preds[i], axis=-1)], (255, 255, 255), font=font)
             refdraw.text((0, 0), self.reverse_classes_map[np.argmax(
-                labels[i].numpy(), axis=-1)], (255, 255, 255), font=font)
+                labels[i], axis=-1)], (255, 255, 255), font=font)
             # print(label[i])
 
             visualize(
