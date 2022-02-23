@@ -1,6 +1,6 @@
 # swiss-army-keras
 
-A library to help with the development of AI models with Keras, with a focus on edge / IoT applications. Based originally on https://github.com/yingkaisha/keras-unet-collection
+A library to help with the development of AI models with Keras, with a focus on edge / IoT applications. Based originally on https://github.com/yingkaisha/keras-unet-collection (see the [README.md](https://github.com/waterviewsrl/swiss-army-keras/blob/main/README-keras-unet-collection.md))
 
 ## Summary
 
@@ -14,3 +14,10 @@ The main features of the library are the following:
 2) Training driver with builtin callbacks, configurable backbone unfreezing, and quantized model generation
 3) Helper classes to easiliy combine pretrained backbones for Edge AI applications with the desired segmentation and classification architectures
 4) Additional loss functions and optimizers which are not part of the Keras distribution, as for now 
+
+## Installation
+
+You can install directly by pypi with pip:
+
+    pip3 install swiss-army-keras
+
