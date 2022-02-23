@@ -1,4 +1,5 @@
 import datetime
+from matplotlib import pyplot as plt
 
 import tensorflow as tf
 
@@ -10,7 +11,7 @@ from swiss_army_keras.quantization_utils import Quantizer
 
 class TrainingDriver():
 
-    def __init__(self, model, model_name, optimizer, loss, metrics, train_set, val_set, test_set, epochs, unfreezed_epochs=-1, callbacks=[], quant_batches=1):
+    def __init__(self, model, model_name, optimizer, loss, metrics, train_set, val_set, test_set, epochs, unfreezed_epochs=-1, callbacks=[], quant_batches=1, plot_metrics=True):
         self.model = model
         self.model_name = model_name
         self.optimizer = optimizer
@@ -22,6 +23,7 @@ class TrainingDriver():
         self.epochs = epochs
         self.unfreezed_epochs = epochs if unfreezed_epochs == -1 else unfreezed_epochs
         self.quant_batches = quant_batches
+        self.plot_metrics = plot_metrics
 
         self.callbacks = []
 
@@ -82,6 +84,31 @@ class TrainingDriver():
                                            validation_data=self.val_set,
                                            callbacks=self.callbacks,
                                            )
+
+        if self.plot_metrics:
+
+            try:
+
+                key_names = ['loss', 'acc', 'iou']
+                for k in key_names:
+                    legend = []
+                    logging.warning(k)
+                    for metric in model_history.history:
+                        logging.warning(metric)
+                        logging.warning(type(metric))
+                        if k.upper() in str(metric).upper():
+                            plt.plot(model_history.history[metric])
+                            legend.append(metric)
+
+                    plt.title(k)
+                    plt.xlabel('epochs')
+                    plt.legend(legend, loc='upper left')
+                    plt.savefig(self.checkpoint_name+'_'+k+'_.pdf')
+                    plt.clf()
+
+            except Exception as e:
+                logging.error(e)
+
 
         logging.warning('Quantizing Model')
 
