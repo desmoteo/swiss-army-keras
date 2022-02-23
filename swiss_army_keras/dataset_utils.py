@@ -1,3 +1,7 @@
+from swiss_army_keras import __path__ as mypath
+from PIL import ImageFont
+from PIL import ImageDraw
+import pathlib
 import os
 from tkinter import Image
 import cv2
@@ -57,7 +61,7 @@ class BrokerProcess(Process):
             logging.warning('Autorizing: {0}, {1}'.format(domain, key))
             return True
 
-    def __init__(self, clear_url='tcp://127.0.0.1:6555', curve_url='tcp://127.0.0.1:6556'):
+    def __init__(self, clear_url='ipc:///tmp/broker-clear', curve_url='ipc:///tmp/broker-curve'):
         super(BrokerProcess, self).__init__()
         self.clear_url = clear_url
         self.curve_url = curve_url
@@ -111,7 +115,7 @@ class WorkerProcess(Process):
                 aug_data = self.augmentations[dset](**data)
                 return [aug_data['image'].data]
 
-    def __init__(self, count, augmentations_serialized, width, height, output_width, output_height, clear_url='tcp://localhost:6555', service='augmentation'):
+    def __init__(self, count, augmentations_serialized, width, height, output_width, output_height, clear_url='ipc:///tmp/broker-clear', service='augmentation'):
         self.count = count
         self.augmentations_serialized = augmentations_serialized
         self.width = width
@@ -132,7 +136,7 @@ class WorkerProcess(Process):
         workload = WorkerProcess.Workload(
             self.count, self.augmentations_serialized, self.width, self.height, self.output_width, self.output_height)
         self.worker = IDPWorker.IronDomoWorker(
-            self.clear_url, self.service.encode(), False, workload=workload)
+            self.clear_url, self.service.encode(), False, workload=workload, identity=f'{self.service}_{self.count}')
         self.worker.loop()
 
 
@@ -416,10 +420,7 @@ class SegmentationAlbumentationsDataLoader:
         # extract 1 batch from the dataset
         res = next(self.datasets[dset].__iter__())
 
-        images = (res[0] - self.normalized_dynamic_range[0]) * \
-            255.0 / \
-            (self.normalized_dynamic_range[1] -
-             self.normalized_dynamic_range[0])
+        images = res[0]
         labels = res[1]
 
         preds = model.predict([images])
@@ -428,8 +429,12 @@ class SegmentationAlbumentationsDataLoader:
             preds = preds[output]
 
         for i in range(num_images):
+            image = (images[i] - self.normalized_dynamic_range[0]) * \
+                255.0 / \
+                (self.normalized_dynamic_range[1] -
+                 self.normalized_dynamic_range[0])
             visualize(
-                image=tf.cast(images[i], tf.uint8),
+                image=tf.cast(image, tf.uint8),
                 predicted_mask=np.argmax(preds[i], axis=-1)*255,
                 reference_mask=np.argmax(labels[i], axis=-1)*255,
             )
@@ -437,38 +442,71 @@ class SegmentationAlbumentationsDataLoader:
 
 class ClassificationAlbumentationsDataLoader:
 
-    def __init__(self, dataset_path, precache=False, train_augmentations=None, val_augmentations=None, test_augmentations=None, images_dir='images', masks_dir='annotations', width=512, height=512, batch_size=16, num_classes=2, mask_downsample=1, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, label_shift=0, normalization=(0, 1), dinamic_range=255):
+    def __init__(self, dataset_path, precache=False, train_augmentations=None, val_augmentations=None, test_augmentations=None, width=512, height=512, batch_size=16, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, normalization=(0, 1), dinamic_range=255):
 
-        self.ids = os.listdir(os.path.join(dataset_path, images_dir))
-        self.num_classes = num_classes
-        # self.mask_ids = os.listdir(masks_dir)
-        images_frames = [os.path.join(dataset_path, images_dir, image_id)
-                         for image_id in self.ids]
-        labels_frames = [os.path.join(dataset_path, masks_dir, image_id.split(
-            image_id.split('.')[-1])[0]+'png') for image_id in self.ids]
+        self.data_root = pathlib.Path(dataset_path)
+
+        self.subfolders = [f.path.split(
+            '/')[-1] for f in os.scandir(str(self.data_root)) if f.is_dir()]
+        self.subfolders.sort()
+
+        filelist = []
+        for sf in self.subfolders:
+            for dirpath, dnames, fnames in os.walk(f'{dataset_path}/{sf}'):
+                for f in fnames:
+                    filelist.append(f'{dataset_path}/{sf}/{f}')
+
+        self.files_ds = tf.data.Dataset.from_tensor_slices(filelist)
+
+        self.classes_map = {}
+        self.reverse_classes_map = {}
+
+        cnt = 0
+        for f in self.subfolders:
+            self.classes_map[f] = cnt
+            self.reverse_classes_map[cnt] = f
+            print(f'Class label {f} will have id: {cnt}')
+            cnt = cnt + 1
+
+        self.num_classes = len(self.classes_map.keys())
+
+        # build a lookup table
+        self.lookup_table = tf.lookup.StaticHashTable(
+            initializer=tf.lookup.KeyValueTensorInitializer(
+                keys=list(self.classes_map.keys()),
+                values=list(self.classes_map.values()),
+            ),
+            default_value=tf.constant(-1),
+            name="class_weight"
+        )
+
+        # build a lookup table
+        self.reverse_lookup_table = tf.lookup.StaticHashTable(
+            initializer=tf.lookup.KeyValueTensorInitializer(
+                keys=list(self.classes_map.values()),
+                values=list(self.classes_map.keys()),
+            ),
+            default_value=tf.constant("unknown"),
+            name="class_weight"
+        )
 
         self.precache = precache
 
         self.configs = {}
-        self.images = images_frames
-        self.labels = labels_frames
+
         self.width = width
         self.height = height
-        self.output_width = int(width/mask_downsample)
-        self.output_height = int(height/mask_downsample)
 
         self.buffer_size = buffer_size
 
         self.train_val_test_split = []
 
         for val in train_val_test_split:
-            self.train_val_test_split.append(int(len(self.images)*val))
+            self.train_val_test_split.append(int(len(self.files_ds)*val))
+
+        print(f'train_val_test_split: {self.train_val_test_split}')
 
         self.batch_size = batch_size
-
-        self.label_shift = label_shift
-
-        self.mask_downsample = mask_downsample
 
         self.augmentations = {}
 
@@ -495,12 +533,12 @@ class ClassificationAlbumentationsDataLoader:
 
         if (isinstance(self.normalization, tuple)):
             logging.warn(f'Normalizing in range: {self.normalization}')
+            self.normalized_dynamic_range = self.normalization
         else:
             mr = self.normalization(
-                np.array([[[[self.dinamic_range[0], self.dinamic_range[1]]]]]))
+                np.array([[[[0, self.dinamic_range]]]])).flatten()
             logging.warn(f'Normalizing in range: {mr}')
-
-        self.assert_dataset()
+            self.normalized_dynamic_range = (mr[0], mr[1])
 
         print('a')
         self.broker = BrokerProcess()
@@ -513,14 +551,14 @@ class ClassificationAlbumentationsDataLoader:
         # for i in range(4):
         for i in range(int(cpu_count()/2)):
             p = WorkerProcess(i, self.augmentations_serialized, self.width,
-                              self.height, self.output_width, self.output_height)
+                              self.height, 0, 0)
             p.daemon = True
             p.start()
 
             workers.append(p)
 
         self.client = IDPAsyncClient.IronDomoAsyncClient(
-            "tcp://localhost:6555", False, identity="DatasetLoader")
+            "ipc:///tmp/broker-clear", False, identity="DatasetLoader")
 
     def __getstate__(self):
         self_dict = self.__dict__.copy()
@@ -552,34 +590,17 @@ class ClassificationAlbumentationsDataLoader:
         transform = None
         return transform
 
-    def assert_dataset(self):
-        assert len(self.images) == len(self.labels)
-        print('Train Images are good to go')
-
     def __len__(self):
-        return len(self.images)
+        return len(self.files_ds)
 
-    def aug_function(self, image, mask, dset):
-
-        data = {"image": image, 'mask': mask}
-
-        aug_data = self.augmentations[dset.decode()](**data)
-
-        aug_img = aug_data["image"]
-
-        aug_msk = aug_data["mask"]  # [:, :, 0]
-
-        return aug_img, aug_msk.astype(np.uint8)
-
-    def aug_function_parallel(self, images, masks, dset):
+    def aug_function_parallel(self, images, dset):
 
         for i in range(images.shape[0]):
 
             self.client.send(b'augmentation', [
-                             dset, images[i].data, masks[i].data])
+                             dset, images[i].data])
 
         aug_img = np.empty_like(images)
-        aug_msk = np.empty_like(masks)
 
         for i in range(images.shape[0]):
 
@@ -587,38 +608,28 @@ class ClassificationAlbumentationsDataLoader:
 
             aug_img[i] = np.frombuffer(aug_data[0], dtype=np.uint8).reshape(
                 self.width, self.height, 3)  # aug_data["image"]
-            aug_msk[i] = np.frombuffer(aug_data[1], dtype=np.uint8).reshape(
-                self.output_width, self.output_height)  # aug_data["image"]
 
-        return aug_img, aug_msk.astype(np.uint8)
+        return aug_img
 
-    @tf.function(input_signature=[tf.TensorSpec(None, tf.uint8), tf.TensorSpec(None, tf.uint8), tf.TensorSpec(None, tf.string)])
+    @tf.function(input_signature=[tf.TensorSpec(None, tf.uint8), tf.TensorSpec(None, tf.int32), tf.TensorSpec(None, tf.string)])
     def augment_data(self, image, label, dset):
 
-        aug_img, aug_msk = tf.numpy_function(func=self.aug_function_parallel, inp=[
-                                             image, label, dset], Tout=[tf.uint8, tf.uint8])
-        # tf.cast(image, np.uint8), tf.cast(label, np.uint8), dset], Tout=[tf.float32, tf.uint8])
+        aug_img = tf.numpy_function(func=self.aug_function_parallel, inp=[
+            image, dset], Tout=[tf.uint8])[0]
 
-        return aug_img, aug_msk
+        return aug_img, label
 
     def open_images(self, image, label):
         img = tf.image.decode_jpeg(tf.io.read_file(image), channels=3)
 
-        lbl = tf.image.decode_png(tf.io.read_file(label), channels=1)
-
         img = tf.cast(tf.image.resize(
             img, [self.height, self.width]), np.uint8)
-        lbl = tf.cast(tf.image.resize(
-            lbl, [int(self.height/self.mask_downsample), int(self.width/self.mask_downsample)], antialias=False, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR), np.uint8)[:, :, 0]
 
-        return img, lbl
+        return img, label
 
     def set_shapes(self, img, label):
 
         img.set_shape((self.width, self.height, 3))
-
-        label.set_shape((int(self.width/self.mask_downsample),
-                        int(self.height/self.mask_downsample)))
 
         return img, label
 
@@ -633,11 +644,11 @@ class ClassificationAlbumentationsDataLoader:
 
         img.set_shape((self.batch_size, self.width, self.height, 3))
 
-        label = tf.cast(tf.one_hot(tf.cast(label-self.label_shift, tf.uint8),
+        label = tf.cast(tf.one_hot(tf.cast(label, tf.uint8),
                                    self.num_classes), tf.float32)
 
-        label.set_shape((self.batch_size,  int(self.width/self.mask_downsample),
-                        int(self.height/self.mask_downsample), self.num_classes))
+        label.set_shape((self.batch_size, self.num_classes))
+
         return img, label
 
     def prepare_dataset(self, dataset, dset):
@@ -667,11 +678,21 @@ class ClassificationAlbumentationsDataLoader:
         return dataset
 
     def build_datasets(self):
-        dataset = tf.data.Dataset.from_tensor_slices(
-            (self.images, self.labels)
-        )
+
+        dataset = self.files_ds
+
+        def process_path(file_path):
+            intermedio = tf.strings.split(file_path, os.sep)[-2]
+            print(f'intermedio {intermedio}')
+            #lbl = tf.cast(self.classes_map[intermedio], tf.float32)
+            lbl = tf.cast(self.lookup_table.lookup(intermedio), tf.int32)
+            #lbl = tf.strings.split(file_path, os.sep)[-2]
+            return file_path, lbl
+
+        dataset = dataset.map(process_path)
+
         dataset = dataset.shuffle(
-            len(self.images), reshuffle_each_iteration=False)
+            len(self.files_ds), reshuffle_each_iteration=False)
         train_dataset = dataset.take(self.train_val_test_split[0])
         val_dataset = dataset.skip(self.train_val_test_split[0]).take(
             self.train_val_test_split[1])
@@ -693,21 +714,30 @@ class ClassificationAlbumentationsDataLoader:
         # extract 1 batch from the dataset
         res = next(self.datasets[dset].__iter__())
 
-        image = res[0]
-        label = res[1]
+        images = (res[0] - self.normalized_dynamic_range[0]) * \
+            255.0 / \
+            (self.normalized_dynamic_range[1] -
+             self.normalized_dynamic_range[0])
 
-        fig = plt.figure(figsize=(22, 22))
         for i in range(num_images):
+            image = tf.cast(images[i], tf.uint8)
+            pimg = Image.fromarray(image.numpy())
+            draw = ImageDraw.Draw(pimg)
+            # font = ImageFont.truetype(<font-file>, <font-size>)
+            font = ImageFont.truetype(
+                f'{mypath}/DejaVuSansMono.ttf', int(self.height/20))
+            # draw.text((x, y),"Sample Text",(r,g,b))
+
+            shape = [(0, 0), (int(self.width/2), int(1.25*self.height/20))]
+            draw.rectangle(shape, (0, 0, 0))
+            #draw.text((0, 0), str(res[1][i].numpy()),(255,255,255), font=font)
+            draw.text((0, 0), self.reverse_classes_map[np.argmax(
+                res[1][i].numpy(), axis=-1)], (255, 255, 255), font=font)
             # print(label[i])
             visualize(
-                image=image[i],
-                mask=np.argmax(label[i], axis=-1)*255,
+                image=pimg,
+                #mask=np.argmax(label[i], axis=-1)*255,
             )
-            t = image[i]  # tf.cast(image[i], tf.uint8)
-            ax = fig.add_subplot(num_images, 5, i+1, xticks=[], yticks=[])
-            # tf.numpy_function(func=ax.imshow, inp=[t], Tout=[])
-            ax.imshow(image[i])
-            # ax.set_title(f"Label: {label[i]}")
 
     def show_results(self, model, num_images=4, dset='test', output=None):
 
@@ -722,10 +752,32 @@ class ClassificationAlbumentationsDataLoader:
         if output is not None:
             preds = preds[output]
 
-        fig = plt.figure(figsize=(22, 22))
         for i in range(num_images):
+            image = (images[i] - self.normalized_dynamic_range[0]) * \
+                255.0 / \
+                (self.normalized_dynamic_range[1] -
+                 self.normalized_dynamic_range[0])
+            image = tf.cast(image, tf.uint8)
+            predimg = Image.fromarray(image.numpy())
+            refimg = Image.fromarray(image.numpy())
+            preddraw = ImageDraw.Draw(predimg)
+            refdraw = ImageDraw.Draw(refimg)
+            # font = ImageFont.truetype(<font-file>, <font-size>)
+            font = ImageFont.truetype(
+                f'{mypath}/DejaVuSansMono.ttf', int(self.height/20))
+            # draw.text((x, y),"Sample Text",(r,g,b))
+
+            shape = [(0, 0), (int(self.width/2), int(1.25*self.height/20))]
+            preddraw.rectangle(shape, (0, 0, 0))
+            refdraw.rectangle(shape, (0, 0, 0))
+            #draw.text((0, 0), str(res[1][i].numpy()),(255,255,255), font=font)
+            preddraw.text((0, 0), self.reverse_classes_map[np.argmax(
+                preds[i].numpy(), axis=-1)], (255, 255, 255), font=font)
+            refdraw.text((0, 0), self.reverse_classes_map[np.argmax(
+                labels[i].numpy(), axis=-1)], (255, 255, 255), font=font)
+            # print(label[i])
+
             visualize(
-                image=images[i],
-                predicted_mask=np.argmax(preds[i], axis=-1)*255,
-                reference_mask=np.argmax(labels[i], axis=-1)*255,
+                predicted=predimg,
+                reference=refimg,
             )
