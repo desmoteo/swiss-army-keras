@@ -3,7 +3,6 @@ from PIL import ImageFont
 from PIL import ImageDraw
 import pathlib
 import os
-from tkinter import Image
 import cv2
 from functools import partial
 
