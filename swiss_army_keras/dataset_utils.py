@@ -445,7 +445,7 @@ class SegmentationAlbumentationsDataLoader:
 
 class ClassificationAlbumentationsDataLoader:
 
-    def __init__(self, dataset_path, precache=False, train_augmentations=None, val_augmentations=None, test_augmentations=None, width=128, height=128, batch_size=16, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, normalization=(0, 1), dinamic_range=255):
+    def __init__(self, dataset_path, precache=False, train_augmentations=None, val_augmentations=None, test_augmentations=None, width=512, height=512, batch_size=16, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, normalization=(0, 1), dinamic_range=255):
 
         self.data_root = pathlib.Path(dataset_path)
 
@@ -457,7 +457,7 @@ class ClassificationAlbumentationsDataLoader:
         for sf in self.subfolders:
             for dirpath, dnames, fnames in os.walk(f'{dataset_path}/{sf}'):
                 for f in fnames:
-                    filelist.append(f'{dataset_path}/{sf}/{f}')
+                    filelist.append(os.path.join(dirpath, f))
 
         self.files_ds = tf.data.Dataset.from_tensor_slices(filelist)
 
