@@ -449,6 +449,8 @@ class ClassificationAlbumentationsDataLoader:
 
         self.data_root = pathlib.Path(dataset_path)
 
+        self.path_parts = len(dataset_path.split(os.sep))
+
         self.subfolders = [f.path.split(
             '/')[-1] for f in os.scandir(str(self.data_root)) if f.is_dir()]
         self.subfolders.sort()
@@ -686,7 +688,7 @@ class ClassificationAlbumentationsDataLoader:
         dataset = self.files_ds
 
         def process_path(file_path):
-            intermedio = tf.strings.split(file_path, os.sep)[-2]
+            intermedio = tf.strings.split(file_path, os.sep)[self.path_parts]
             #lbl = tf.cast(self.classes_map[intermedio], tf.float32)
             lbl = tf.cast(self.lookup_table.lookup(intermedio), tf.int32)
             #lbl = tf.strings.split(file_path, os.sep)[-2]
