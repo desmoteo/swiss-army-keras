@@ -34,7 +34,7 @@ def classifier(input_tensor, n_classes, backbone='MobileNetV3Large', weights='im
     return res
 
 
-def wise_srnet_classifier(input_tensor, n_classes, backbone='MobileNetV3Large', weights='imagenet', freeze_backbone=True, freeze_batch_norm=True, name='classifier', deep_layer=5, pooling='avg', pool_size=3, size=512, activation="swish", kernel_regularizer=l2(0.001), bias_regularizer=l2(0.001), dropout=0.3):
+def wise_srnet_classifier(input_tensor, n_classes, backbone='MobileNetV3Large', weights='imagenet', freeze_backbone=True, freeze_batch_norm=True, name='classifier', deep_layer=5, pooling='avg', pool_size=3, size=512, activation="swish", pool_activation=None, kernel_regularizer=l2(0.001), bias_regularizer=l2(0.001), dropout=0.3):
 
     backbone_ = backbone_zoo(
         backbone, weights, input_tensor, deep_layer, freeze_backbone, freeze_batch_norm)
@@ -48,6 +48,7 @@ def wise_srnet_classifier(input_tensor, n_classes, backbone='MobileNetV3Large', 
     pool_out_size = math.floor((out_size - pool_size)/pool_size + 1)
 
     depthw = tf.keras.layers.DepthwiseConv2D(pool_out_size,
+                                            activation=pool_activation,
                                              depthwise_initializer=tf.keras.initializers.RandomNormal(
                                                  mean=0.0, stddev=0.01),
                                              bias_initializer=tf.keras.initializers.Zeros(), depthwise_constraint=tf.keras.constraints.NonNeg())(avg)
