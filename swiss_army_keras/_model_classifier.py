@@ -44,7 +44,7 @@ def wise_srnet_classifier(input_tensor, n_classes, backbone='MobileNetV3Large', 
     avg = tf.keras.layers.AveragePooling2D(
         pool_size, padding='valid')(base_model)
 
-    out_size = input_tensor.shape()[1]/(math.pow(2, deep_layer))
+    out_size = input_tensor.shape[1]/(math.pow(2, deep_layer))
     pool_out_size = math.floor((out_size - pool_size)/pool_size + 1)
 
     depthw = tf.keras.layers.DepthwiseConv2D(pool_out_size,
@@ -81,7 +81,7 @@ def distiller_classifier(input_tensor, n_classes, backbone='MobileNetV3Large', w
     avg = tf.keras.layers.AveragePooling2D(
         pool_size, padding='valid')(base_model)
 
-    out_size = input_tensor.shape()[1]/(math.pow(2, deep_layer))
+    out_size = input_tensor.shape[1]/(math.pow(2, deep_layer))
     pool_out_size = math.floor((out_size - pool_size)/pool_size + 1)
 
     depthw = []
