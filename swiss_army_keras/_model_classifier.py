@@ -89,7 +89,7 @@ def distiller_classifier(input_tensor, n_classes, backbone='MobileNetV3Large', w
 
     for i in range(macrofeatures_number):
         d = tf.keras.layers.DepthwiseConv2D(pool_out_size,
-                                            ativation=pool_activation,
+                                            activation=pool_activation,
                                             depthwise_initializer=tf.keras.initializers.RandomNormal(
                                                 mean=0.0, stddev=0.01),
                                             bias_initializer=tf.keras.initializers.Zeros(), depthwise_constraint=tf.keras.constraints.NonNeg())(avg)
