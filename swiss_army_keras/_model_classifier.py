@@ -94,7 +94,7 @@ def distiller_classifier(input_tensor, n_classes, backbone='MobileNetV3Large', w
         flat = tf.keras.layers.Flatten()(d)
         depthw.append(flat)
 
-    concatenate = tf.keras.layers.Concatenate(depthw)
+    concatenate = tf.keras.layers.Concatenate()(depthw)
 
     pre_classifier = tf.keras.layers.Dense(
         size,
