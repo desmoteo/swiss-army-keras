@@ -3,7 +3,7 @@ from __future__ import absolute_import
 
 from swiss_army_keras._model_unet_2d import unet_2d_base
 from swiss_army_keras._model_vnet_2d import vnet_2d_base
-from swiss_army_keras._model_unet_plus_2d import unet_plus_2d_base 
+from swiss_army_keras._model_unet_plus_2d import unet_plus_2d_base
 from swiss_army_keras._model_r2_unet_2d import r2_unet_2d_base
 from swiss_army_keras._model_att_unet_2d import att_unet_2d_base
 from swiss_army_keras._model_resunet_a_2d import resunet_a_2d_base
@@ -15,4 +15,4 @@ except:
     print('Cannot load _model_transunet_2d')
 from swiss_army_keras._model_swin_unet_2d import swin_unet_2d_base
 from swiss_army_keras._model_deeplab_v3_plus import deeplab_v3_plus
-from swiss_army_keras._model_classifier import classifier
+from swiss_army_keras._model_classifier import classifier, wise_srnet_classifier, distiller_classifier
