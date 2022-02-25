@@ -8,10 +8,11 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(name='swiss_army_keras',
-      version = '0.3.13',
-      description = 'A collection of models and utilities for the development of edge deployable Keras models',
-      long_description = long_description,
-      keywords = ['keras', 'segmentation', 'edge', 'quantization', 'augmentation'],
+      version='0.3.14',
+      description='A collection of models and utilities for the development of edge deployable Keras models',
+      long_description=long_description,
+      keywords=['keras', 'segmentation', 'edge',
+                'quantization', 'augmentation'],
       classifiers=[
           'Development Status :: 3 - Alpha',
           'License :: OSI Approved :: MIT License',
@@ -29,5 +30,13 @@ setup(name='swiss_army_keras',
           # If any package contains *.txt files, include them:
           "": ["*.ttf"],
       },
-      install_requires = ['numpy', 'tensorflow'],
-      zip_safe = False)
+      install_requires=[
+          'numpy',
+          'tensorflow',
+          'git+https://github.com/waterviewsrl/efficientnet-lite-keras.git',
+          'irondomo',
+          'pillow',
+          'adabelief_tf',
+          'typeguard'
+      ],
+      zip_safe=False)
