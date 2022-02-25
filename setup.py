@@ -32,7 +32,7 @@ setup(name='swiss_army_keras',
       },
       install_requires=[
           'numpy',
-          'tensorflow',
+          'tensorflow>=2.4.0',
           'efficientnet-lite-keras @ git+https://github.com/waterviewsrl/efficientnet-lite-keras.git',
           'irondomo',
           'pillow',
