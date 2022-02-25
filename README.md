@@ -17,6 +17,16 @@ The main features of the library are the following:
 
 ## Installation
 
+### Dependencies
+
+tensorflow>=2.4.1 (cpu or gpu) must be installed.
+
+Install the dependency git+https://github.com/waterviewsrl/efficientnet-lite-keras.git (forked from [sebastian-sz/efficientnet-lite-keras](https://github.com/sebastian-sz/efficientnet-lite-keras)  to simplify requirements and solve minor import issues):
+
+    pip3 install git+https://github.com/waterviewsrl/efficientnet-lite-keras.git
+
+### Install with pip
+
 You can install directly by pypi with pip:
 
     pip3 install swiss-army-keras
