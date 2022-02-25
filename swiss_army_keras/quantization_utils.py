@@ -64,7 +64,8 @@ class Quantizer():
 
         if isinstance(self.model, str):
             loaded_model = tf.keras.models.load_model(
-                self.model, compile=False)
+                self.model, 
+                compile=False)
             loaded_model.trainable = False
             converter = tf.lite.TFLiteConverter.from_keras_model(loaded_model)
             self.saved_model_dirname = self.model

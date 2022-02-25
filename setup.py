@@ -33,7 +33,7 @@ setup(name='swiss_army_keras',
       install_requires=[
           'numpy',
           'tensorflow',
-          'git+https://github.com/waterviewsrl/efficientnet-lite-keras.git',
+          'efficientnet-lite-keras @ git+https://github.com/waterviewsrl/efficientnet-lite-keras.git',
           'irondomo',
           'pillow',
           'adabelief_tf',
