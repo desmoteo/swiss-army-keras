@@ -92,7 +92,8 @@ def distiller_classifier(input_tensor, n_classes, backbone='MobileNetV3Large', w
                                                 mean=0.0, stddev=0.01),
                                             bias_initializer=tf.keras.initializers.Zeros(), depthwise_constraint=tf.keras.constraints.NonNeg())(avg)
         flat = tf.keras.layers.Flatten()(d)
-        depthw.append(flat)
+        drop_out = tf.keras.layers.Dropout(dropout)(flat)
+        depthw.append(drop_out)
 
     concatenate = tf.keras.layers.Concatenate()(depthw)
 
