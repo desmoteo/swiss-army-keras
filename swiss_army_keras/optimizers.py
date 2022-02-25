@@ -433,7 +433,7 @@ class Yogi(tf.keras.optimizers.Optimizer):
 #@tf.keras.utils.register_keras_serializable(package="Addons")
 
 
-class RectifiedAdam(tf.keras.optimizers.Optimizer):
+class RectifiedAdam2(tf.keras.optimizers.Optimizer):
     """Variant of the Adam optimizer whose adaptive learning rate is rectified
     so as to have a consistent variance.
     It implements the Rectified Adam (a.k.a. RAdam) proposed by

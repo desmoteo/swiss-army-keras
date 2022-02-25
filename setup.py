@@ -8,7 +8,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(name='swiss_army_keras',
-      version='0.3.14',
+      version='0.3.15',
       description='A collection of models and utilities for the development of edge deployable Keras models',
       long_description=long_description,
       keywords=['keras', 'segmentation', 'edge',
@@ -33,7 +33,7 @@ setup(name='swiss_army_keras',
       install_requires=[
           'numpy',
           #'tensorflow>=2.4.0',
-          'efficientnet-lite-keras @ git+https://github.com/waterviewsrl/efficientnet-lite-keras.git',
+          #'efficientnet-lite-keras @ git+https://github.com/waterviewsrl/efficientnet-lite-keras.git',
           'irondomo',
           'pillow',
           'adabelief_tf',
