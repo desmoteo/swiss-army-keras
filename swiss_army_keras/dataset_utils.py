@@ -565,6 +565,7 @@ class ClassificationAlbumentationsDataLoader:
         for i in range(int(cpu_count()/2)):
             p = WorkerProcess(i, self.augmentations_serialized,
                               self.width, self.height,
+                              0, 0,
                               clear_url=self.socket_clear,
                               mode='classification')
             p.daemon = True
