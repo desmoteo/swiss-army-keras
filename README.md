@@ -31,3 +31,9 @@ You can install directly by pypi with pip:
 
     pip3 install swiss-army-keras
 
+
+## Documentation
+
+You can find documentation and examples [here](https://swiss-army-keras.readthedocs.io/en/latest/index.html)
+
+Example jupyter notebooks can also be found in the example folder here.
