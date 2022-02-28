@@ -6,3 +6,4 @@ git+https://github.com/waterviewsrl/swiss-army-keras.git
 git+https://github.com/waterviewsrl/efficientnet-lite-keras.git
 typeguard
 irondomo
+nbsphinx
