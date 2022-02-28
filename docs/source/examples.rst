@@ -14,8 +14,8 @@ You can find here sample notebooks which show the usage of varius feature of the
    :caption: Sample Notebooks:
 
    notebooks/flowers-classifier.ipynb
-   notebooks/user_guide_models.ipynb
    notebooks/segmentation_deeplab-v3-plus_oxford-iiit.ipynb
+   notebooks/user_guide_models.ipynb
    
 
 
