@@ -563,8 +563,8 @@ class ClassificationAlbumentationsDataLoader:
         workers = []
         # for i in range(4):
         for i in range(int(cpu_count()/2)):
-            p = WorkerProcess(i, self.augmentations_serialized, self.width,
-                              self.height, self.output_width, self.output_height,
+            p = WorkerProcess(i, self.augmentations_serialized,
+                              self.width, self.height,
                               clear_url=self.socket_clear,
                               mode='classification')
             p.daemon = True
