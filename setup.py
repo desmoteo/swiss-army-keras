@@ -36,7 +36,6 @@ setup(name='swiss_army_keras',
           #'efficientnet-lite-keras @ git+https://github.com/waterviewsrl/efficientnet-lite-keras.git',
           'irondomo',
           'pillow',
-          'adabelief_tf',
           'typeguard'
       ],
       zip_safe=False)
