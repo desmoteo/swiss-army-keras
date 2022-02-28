@@ -3,6 +3,7 @@ from PIL import ImageFont
 from PIL import ImageDraw
 import pathlib
 import os
+from base64 import b64encode
 import cv2
 from functools import partial
 
@@ -143,6 +144,7 @@ class WorkerProcess(Process):
             self.clear_url, self.service.encode(), False, workload=workload, identity=f'{self.service}_{self.count}')
         self.worker.loop()
 
+
 class SegmentationAlbumentationsDataLoader:
 
     def __init__(self, dataset_path, precache=False, train_augmentations=None, val_augmentations=None, test_augmentations=None, images_dir='images', masks_dir='annotations', width=512, height=512, batch_size=16, num_classes=2, mask_downsample=1, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, label_shift=0, normalization=(0, 1), dinamic_range=255):
@@ -212,25 +214,29 @@ class SegmentationAlbumentationsDataLoader:
 
         self.assert_dataset()
 
-        print('a')
-        self.broker = BrokerProcess()
-        print('b')
+        randpart = b64encode(os.urandom(5)).decode()
+
+        self.socket_clear = f'ipc:///tmp/swiss_army_keras_segmentation_clear_socket_{randpart}'
+        self.socket_curve = f'ipc:///tmp/swiss_army_keras_segmentation_curve_socket_{randpart}'
+
+        self.broker = BrokerProcess(
+            clear_url=self.socket_clear, curve_url=self.socket_curve)
         self.broker.daemon = True
         self.broker.start()
-        print('c')
 
         workers = []
         # for i in range(4):
         for i in range(int(cpu_count()/2)):
             p = WorkerProcess(i, self.augmentations_serialized, self.width,
-                              self.height, self.output_width, self.output_height)
+                              self.height, self.output_width, self.output_height,
+                              clear_url=self.socket_clear)
             p.daemon = True
             p.start()
 
             workers.append(p)
 
         self.client = IDPAsyncClient.IronDomoAsyncClient(
-            "tcp://localhost:6555", False, identity="DatasetLoader")
+            self.socket_clear, False, identity="DatasetLoader")
 
     def __getstate__(self):
         self_dict = self.__dict__.copy()
@@ -417,7 +423,6 @@ class SegmentationAlbumentationsDataLoader:
                 mask=np.argmax(label[i], axis=-1)*255,
             )
 
-
     def show_results(self, model, num_images=4, dset='test', output=None):
 
         # extract 1 batch from the dataset
@@ -545,25 +550,30 @@ class ClassificationAlbumentationsDataLoader:
             logging.warn(f'Normalizing in range: {mr}')
             self.normalized_dynamic_range = (mr[0], mr[1])
 
-        print('a')
-        self.broker = BrokerProcess()
-        print('b')
+        randpart = b64encode(os.urandom(5)).decode()
+
+        self.socket_clear = f'ipc:///tmp/swiss_army_keras_classification_clear_socket_{randpart}'
+        self.socket_curve = f'ipc:///tmp/swiss_army_keras_classification_curve_socket_{randpart}'
+
+        self.broker = BrokerProcess(
+            clear_url=self.socket_clear, curve_url=self.socket_curve)
         self.broker.daemon = True
         self.broker.start()
-        print('c')
 
         workers = []
         # for i in range(4):
         for i in range(int(cpu_count()/2)):
             p = WorkerProcess(i, self.augmentations_serialized, self.width,
-                              self.height, 0, 0, mode='classification')
+                              self.height, self.output_width, self.output_height,
+                              clear_url=self.socket_clear,
+                              mode='classification')
             p.daemon = True
             p.start()
 
             workers.append(p)
 
         self.client = IDPAsyncClient.IronDomoAsyncClient(
-            "tcp://127.0.0.1:4445", False, identity="DatasetLoader")
+            self.socket_clear, False, identity="DatasetLoader")
 
     def __getstate__(self):
         self_dict = self.__dict__.copy()

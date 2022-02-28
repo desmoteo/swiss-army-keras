@@ -10,7 +10,8 @@ Welcome to swiss_army_keras's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-
+   intro
+   examples
 
 Indices and tables
 ==================
