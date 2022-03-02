@@ -1,3 +1,4 @@
+from codecs import ignore_errors
 from swiss_army_keras import __path__ as mypath
 from PIL import ImageFont
 from PIL import ImageDraw
@@ -147,7 +148,7 @@ class WorkerProcess(Process):
 
 class SegmentationAlbumentationsDataLoader:
 
-    def __init__(self, dataset_path, precache=False, train_augmentations=None, val_augmentations=None, test_augmentations=None, images_dir='images', masks_dir='annotations', width=512, height=512, batch_size=16, num_classes=2, mask_downsample=1, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, label_shift=0, normalization=(0, 1), dinamic_range=255):
+    def __init__(self, dataset_path, precache=False, train_augmentations=None, val_augmentations=None, test_augmentations=None, images_dir='images', masks_dir='annotations', width=512, height=512, batch_size=16, num_classes=2, mask_downsample=1, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, label_shift=0, normalization=(0, 1), dinamic_range=255, ignore_errors=False):
 
         self.ids = os.listdir(os.path.join(dataset_path, images_dir))
         self.num_classes = num_classes
@@ -237,6 +238,8 @@ class SegmentationAlbumentationsDataLoader:
 
         self.client = IDPAsyncClient.IronDomoAsyncClient(
             self.socket_clear, False, identity="DatasetLoader")
+
+        self.ignore_errors = ignore_errors
 
     def __getstate__(self):
         self_dict = self.__dict__.copy()
@@ -361,6 +364,8 @@ class SegmentationAlbumentationsDataLoader:
         # Open and resize images
         dataset = dataset.map(
             self.open_images, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        if(self.ignore_errors):
+            dataset = dataset.apply(tf.data.experimental.ignore_errors())
         dataset = dataset.prefetch(
             tf.data.experimental.AUTOTUNE)
         if self.precache:
@@ -450,7 +455,7 @@ class SegmentationAlbumentationsDataLoader:
 
 class ClassificationAlbumentationsDataLoader:
 
-    def __init__(self, dataset_path, precache=False, train_augmentations=None, val_augmentations=None, test_augmentations=None, width=512, height=512, batch_size=16, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, normalization=(0, 1), dinamic_range=255):
+    def __init__(self, dataset_path, precache=False, train_augmentations=None, val_augmentations=None, test_augmentations=None, width=512, height=512, batch_size=16, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, normalization=(0, 1), dinamic_range=255, ignore_errors=False):
 
         self.data_root = pathlib.Path(dataset_path)
 
@@ -576,6 +581,8 @@ class ClassificationAlbumentationsDataLoader:
         self.client = IDPAsyncClient.IronDomoAsyncClient(
             self.socket_clear, False, identity="DatasetLoader")
 
+        self.ignore_errors = ignore_errors
+
     def __getstate__(self):
         self_dict = self.__dict__.copy()
         del self_dict['pool']
@@ -673,6 +680,8 @@ class ClassificationAlbumentationsDataLoader:
         # Open and resize images
         dataset = dataset.map(
             self.open_images, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        if(self.ignore_errors):
+            dataset = dataset.apply(tf.data.experimental.ignore_errors())
         dataset = dataset.prefetch(
             tf.data.experimental.AUTOTUNE)
         if self.precache:
