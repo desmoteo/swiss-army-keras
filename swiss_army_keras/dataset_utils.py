@@ -104,21 +104,28 @@ class WorkerProcess(Process):
                 (self.width, self.height, 3))
 
             if self.mode == 'segmentation':
+
                 lbl = np.frombuffer(request[2], dtype=np.uint8).reshape(
                     (self.output_width, self.output_height))
+                try:
+                    data = {'image': img, 'mask': lbl}
 
-                data = {'image': img, 'mask': lbl}
-
-                aug_data = self.augmentations[dset](**data)
-                return [aug_data['image'].data, aug_data['mask'].data]
+                    aug_data = self.augmentations[dset](**data)
+                    return [aug_data['image'].data, aug_data['mask'].data]
+                except Exception as e:
+                    logging.error(f'Augmentation error: {e}')
+                    return [img.data, lbl.data]
             elif self.mode == 'classification':
 
                 data = {'image': img}
-
                 label = request[2]
 
-                aug_data = self.augmentations[dset](**data)
-                return [aug_data['image'].data, label]
+                try:
+                    aug_data = self.augmentations[dset](**data)
+                    return [aug_data['image'].data, label]
+                except Exception as e:
+                    logging.error(f'Augmentation error: {e}')
+                    return [img.data, label]
 
     def __init__(self, count, augmentations_serialized, width, height, output_width, output_height, clear_url='tcp://127.0.0.1:4445', service='augmentation', mode='segmentation'):
         self.count = count
