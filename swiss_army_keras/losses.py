@@ -609,34 +609,28 @@ def categorical_focal_loss(alpha, gamma=2.):
     return categorical_focal_loss_fixed
 
 
-def loss_adapter(loss_function, factor=1, expand=False, from_logits=False, label_smoothing=0.0):
+def loss_adapter(loss_function, factor=1, expand=False, contract=False, from_logits=False, label_smoothing=0.0):
 
     loss_f = loss_function
-    from_l = from_logits
     expand_ = expand
 
     # scale = scale
 
     def loss(y_true, y_pred):
 
-        scale = ((tf.shape(y_true,  out_type=tf.float32)[
-            1]) / (tf.shape(y_pred,  out_type=tf.float32)[1]))  # if scale is None else scale
+        if expand_:
+            new_height = int(y_true.shape[1])
+            new_width = int(y_true.shape[2])
+            y_pred = tf.image.resize(
+                y_pred, [new_height, new_width],
+                antialias=False, method='nearest')
+        elif contract:
+            new_height = int(y_pred.shape[1])
+            new_width = int(y_pred.shape[2])
 
-        if (scale != 1.0):
-            if expand_:
-                new_height = int(y_pred.shape[1] * scale)
-                new_width = int(y_pred.shape[2] * scale)
-                y_pred = tf.image.resize(
-                    y_pred, [new_height, new_width], antialias=False, method='nearest')
-            else:
-                new_height = int(y_pred.shape[1])
-                new_width = int(y_pred.shape[2])
+            y_true = tf.image.resize(y_true, [
+                new_height, new_width], antialias=False, method='nearest')
 
-                # y_true = tf.round(tf.image.resize(y_true, [
-                #    new_height, new_width], antialias=False, method='nearest') + tf.keras.backend.epsilon())
-                y_true = tf.image.resize(y_true, [
-                    new_height, new_width], antialias=False, method='nearest')
-                # y_true = max_pool_2d(y_true)
         if from_logits:
             y_pred = tf.keras.activations.softmax(y_pred)
 
