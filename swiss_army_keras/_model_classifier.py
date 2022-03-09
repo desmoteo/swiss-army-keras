@@ -15,7 +15,7 @@ def classifier(input_tensor, n_classes, backbone='MobileNetV3Large', weights='im
     base_model = backbone_([input_tensor, ])[deep_layer-1]
 
     pool = tf.keras.layers.GlobalAveragePooling2D()(
-        base_model) if pooling == 'avg' else tf.keras.layers.GlobalAveragePooling2D()(base_model)
+        base_model) if pooling == 'avg' else tf.keras.layers.GlobalMaxPool2D()(base_model)
 
     pre_classifier = tf.keras.layers.Dense(
         size,
@@ -43,6 +43,7 @@ def wise_srnet_classifier(input_tensor, n_classes, backbone='MobileNetV3Large', 
     base_model = backbone_([input_tensor, ])[deep_layer-1]
 
     avg = tf.keras.layers.AveragePooling2D(
+        pool_size, padding='valid')(base_model) if pooling == 'avg' else tf.keras.layers.MaxPool2D(
         pool_size, padding='valid')(base_model)
 
     out_size = input_tensor.shape[1]/(math.pow(2, deep_layer))
@@ -81,7 +82,8 @@ def distiller_classifier(input_tensor, n_classes, backbone='MobileNetV3Large', w
     base_model = backbone_([input_tensor, ])[deep_layer-1]
 
     avg = tf.keras.layers.AveragePooling2D(
-        pool_size, padding='valid')(base_model)
+        pool_size, padding='valid')(base_model) if pooling == 'avg' else tf.keras.layers.MaxPool2D(
+        pool_size, padding='valid')(base_model) 
 
     out_size = input_tensor.shape[1]/(math.pow(2, deep_layer))
     pool_out_size = math.floor((out_size - pool_size)/pool_size + 1)
