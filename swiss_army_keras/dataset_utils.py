@@ -155,7 +155,7 @@ class WorkerProcess(Process):
 
 class SegmentationAlbumentationsDataLoader:
 
-    def __init__(self, dataset_path, precache=False, train_augmentations=None, val_augmentations=None, test_augmentations=None, images_dir='images', masks_dir='annotations', width=512, height=512, batch_size=16, num_classes=2, mask_downsample=1, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, label_shift=0, normalization=(0, 1), dinamic_range=255, ignore_errors=False):
+    def __init__(self, dataset_path, precache=False, train_augmentations=None, val_augmentations=None, test_augmentations=None, images_dir='images', masks_dir='annotations', resize=True, width=512, height=512, batch_size=16, num_classes=2, mask_downsample=1, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, label_shift=0, normalization=(0, 1), dinamic_range=255, ignore_errors=False):
 
         self.ids = os.listdir(os.path.join(dataset_path, images_dir))
         self.num_classes = num_classes
@@ -166,6 +166,8 @@ class SegmentationAlbumentationsDataLoader:
             image_id.split('.')[-1])[0]+'png') for image_id in self.ids]
 
         self.precache = precache
+
+        self.resize = resize
 
         self.configs = {}
         self.images = images_frames
@@ -332,10 +334,12 @@ class SegmentationAlbumentationsDataLoader:
 
         lbl = tf.image.decode_png(tf.io.read_file(label), channels=1)
 
-        img = tf.cast(tf.image.resize(
-            img, [self.height, self.width]), np.uint8)
-        lbl = tf.cast(tf.image.resize(
-            lbl, [int(self.height/self.mask_downsample), int(self.width/self.mask_downsample)], antialias=False, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR), np.uint8)[:, :, 0]
+        if self.resize:
+
+            img = tf.cast(tf.image.resize(
+                img, [self.height, self.width]), np.uint8)
+            lbl = tf.cast(tf.image.resize(
+                lbl, [int(self.height/self.mask_downsample), int(self.width/self.mask_downsample)], antialias=False, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR), np.uint8)[:, :, 0]
 
         return img, lbl
 
@@ -462,11 +466,13 @@ class SegmentationAlbumentationsDataLoader:
 
 class ClassificationAlbumentationsDataLoader:
 
-    def __init__(self, dataset_path, precache=False, train_augmentations=None, val_augmentations=None, test_augmentations=None, width=512, height=512, batch_size=16, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, normalization=(0, 1), dinamic_range=255, ignore_errors=False):
+    def __init__(self, dataset_path, precache=False, train_augmentations=None, val_augmentations=None, test_augmentations=None, resize=True, width=512, height=512, batch_size=16, train_val_test_split=[0.8, 0.1, 0.1], buffer_size=4, normalization=(0, 1), dinamic_range=255, ignore_errors=False):
 
         self.data_root = pathlib.Path(dataset_path)
 
         self.path_parts = len(dataset_path.split(os.sep))
+
+        self.resize = resize
 
         self.subfolders = [f.path.split(
             '/')[-1] for f in os.scandir(str(self.data_root)) if f.is_dir()]
@@ -653,8 +659,9 @@ class ClassificationAlbumentationsDataLoader:
     def open_images(self, image, label):
         img = tf.image.decode_jpeg(tf.io.read_file(image), channels=3)
 
-        img = tf.cast(tf.image.resize(
-            img, [self.height, self.width]), np.uint8)
+        if self.resize:
+            img = tf.cast(tf.image.resize(
+                img, [self.height, self.width]), np.uint8)
 
         return img, label
 
