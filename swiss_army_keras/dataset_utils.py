@@ -303,8 +303,10 @@ class SegmentationAlbumentationsDataLoader:
 
         for i in range(images.shape[0]):
 
+            
+
             self.client.send(b'augmentation', [
-                             dset, images[i].data, masks[i].data])
+                             dset,  images[i].data, masks[i].data])
 
         aug_img = np.empty_like(images)
         aug_msk = np.empty_like(masks)
@@ -333,13 +335,30 @@ class SegmentationAlbumentationsDataLoader:
         img = tf.image.decode_jpeg(tf.io.read_file(image), channels=3)
 
         lbl = tf.image.decode_png(tf.io.read_file(label), channels=1)
+        
+        def fmaker(m):
+            def f(): 
+                # tf.print(f'Resizing: {m}')
+                return tf.cast(tf.image.resize(
+                    img, [self.height, self.width], method=m), np.uint8)
+            return f
 
-        if self.resize:
 
-            img = tf.cast(tf.image.resize(
-                img, [self.height, self.width]), np.uint8)
-            lbl = tf.cast(tf.image.resize(
-                lbl, [int(self.height/self.mask_downsample), int(self.width/self.mask_downsample)], antialias=False, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR), np.uint8)[:, :, 0]
+        img = tf.switch_case(
+            tf.random.uniform(shape=[], dtype=tf.int32, maxval=4), 
+            {
+                0: fmaker('nearest'),
+                1: fmaker('bilinear'),
+                2: fmaker('bicubic'),
+                3: fmaker('area'),
+            }, 
+            default=None, 
+            name='switch_case'
+        )
+
+
+        lbl = tf.cast(tf.image.resize(
+            lbl, [int(self.height/self.mask_downsample), int(self.width/self.mask_downsample)], antialias=False, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR), np.uint8)[:, :, 0]
 
         return img, lbl
 
@@ -659,9 +678,25 @@ class ClassificationAlbumentationsDataLoader:
     def open_images(self, image, label):
         img = tf.image.decode_jpeg(tf.io.read_file(image), channels=3)
 
-        if self.resize:
-            img = tf.cast(tf.image.resize(
-                img, [self.height, self.width]), np.uint8)
+        def fmaker(m):
+            def f(): 
+                # tf.print(f'Resizing: {m}')
+                return tf.cast(tf.image.resize(
+                    img, [self.height, self.width], method=m), np.uint8)
+            return f
+
+
+        img = tf.switch_case(
+            tf.random.uniform(shape=[], dtype=tf.int32, maxval=4), 
+            {
+                0: fmaker('nearest'),
+                1: fmaker('bilinear'),
+                2: fmaker('bicubic'),
+                3: fmaker('area'),
+            }, 
+            default=None, 
+            name='switch_case'
+        )
 
         return img, label
 
