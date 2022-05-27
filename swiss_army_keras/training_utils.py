@@ -31,7 +31,7 @@ class ModelBuilder:
 
 class TrainingDriver():
 
-    def __init__(self, model, model_name, optimizer, loss, metrics, train_set, val_set, test_set, epochs, unfreezed_epochs=-1, callbacks=[], quant_batches=1, plot_metrics=True):
+    def __init__(self, model, model_name, optimizer, loss, metrics, train_set, val_set, test_set, epochs, patience=20, unfreezed_epochs=-1, callbacks=[], quant_batches=1, plot_metrics=True):
         self.model = model
         self.model_name = model_name
         self.optimizer = optimizer
@@ -44,6 +44,8 @@ class TrainingDriver():
         self.unfreezed_epochs = epochs if unfreezed_epochs == -1 else unfreezed_epochs
         self.quant_batches = quant_batches
         self.plot_metrics = plot_metrics
+
+        self.patience = patience
 
         self.callbacks = []
 
@@ -64,7 +66,7 @@ class TrainingDriver():
         self.callbacks.append(
             tf.keras.callbacks.EarlyStopping(
                 monitor="val_loss",
-                patience=10,
+                patience=self.patience,
                 mode="min",
                 restore_best_weights=True,
             )
