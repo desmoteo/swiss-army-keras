@@ -8,7 +8,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(name='swiss_army_keras',
-      version='0.6.0',
+      version='0.7.0',
       description='A collection of models and utilities for the development of edge deployable Keras models',
       long_description=long_description,
       keywords=['keras', 'segmentation', 'classification', 'finetuning', 'edge',
