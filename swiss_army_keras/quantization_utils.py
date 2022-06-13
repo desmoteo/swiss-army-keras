@@ -38,7 +38,7 @@ totflite_dict[1] = symmetric_totflite
 
 
 class Quantizer():
-    def __init__(self, dataset, model, name, append_datetime=True, batches=1):
+    def __init__(self, dataset, model, name, append_datetime=True, batches=1, weights_checkpoint_name=None):
         self.dataset = dataset
         self.model = model
         if append_datetime:
@@ -51,6 +51,7 @@ class Quantizer():
         self.tflite_ui8_model = None
         self.tflite_f16_model = None
         self.normalization = 0
+        self.weights_checkpoint_name = weights_checkpoint_name
 
     def quantize(self):
 
@@ -64,12 +65,14 @@ class Quantizer():
 
         if isinstance(self.model, str):
             loaded_model = tf.keras.models.load_model(
-                self.model, 
+                self.model,
                 compile=False)
             loaded_model.trainable = False
             converter = tf.lite.TFLiteConverter.from_keras_model(loaded_model)
             self.saved_model_dirname = self.model
         else:
+            if self.weights_checkpoint_name is not None:
+                self.model.load_weights(self.weights_checkpoint_name)
             self.model.trainable = False
             converter = tf.lite.TFLiteConverter.from_keras_model(self.model)
             self.saved_model_dirname = self.name + 'saved_model'
@@ -85,7 +88,7 @@ class Quantizer():
 
         self.tflite_ui8_model = converter.convert()
 
-        with open(f'{self.name}ui8.tflite', 'wb') as f:
+        with open(f'{self.name}quant_ui8.tflite', 'wb') as f:
             f.write(self.tflite_ui8_model)
 
         if isinstance(self.model, str):
@@ -106,7 +109,7 @@ class Quantizer():
         # Ensure that if any ops can't be quantized, the converter throws an error
         self.tflite_f16_model = converter.convert()
 
-        with open(f'{self.name}f16.tflite', 'wb') as f:
+        with open(f'{self.name}quant_f16.tflite', 'wb') as f:
             f.write(self.tflite_f16_model)
 
         '''params = tf.experimental.tensorrt.ConversionParams(

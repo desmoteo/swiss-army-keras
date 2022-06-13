@@ -224,7 +224,7 @@ class SegmentationAlbumentationsDataLoader:
 
         self.assert_dataset()
 
-        randpart = b64encode(os.urandom(5)).decode()
+        randpart = b64encode(os.urandom(5), altchars=b'01').decode()
 
         self.socket_clear = f'ipc:///tmp/swiss_army_keras_segmentation_clear_socket_{randpart}'
         self.socket_curve = f'ipc:///tmp/swiss_army_keras_segmentation_curve_socket_{randpart}'
@@ -587,7 +587,7 @@ class ClassificationAlbumentationsDataLoader:
             logging.warn(f'Normalizing in range: {mr}')
             self.normalized_dynamic_range = (mr[0], mr[1])
 
-        randpart = b64encode(os.urandom(5)).decode()
+        randpart = b64encode(os.urandom(5), altchars=b'01').decode()
 
         self.socket_clear = f'ipc:///tmp/swiss_army_keras_classification_clear_socket_{randpart}'
         self.socket_curve = f'ipc:///tmp/swiss_army_keras_classification_curve_socket_{randpart}'

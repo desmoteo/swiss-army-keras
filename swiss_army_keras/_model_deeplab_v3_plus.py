@@ -13,7 +13,13 @@ from tensorflow.keras.layers import Input, BatchNormalization, Conv2D, AveragePo
 from tensorflow.keras.models import Model
 from tensorflow.keras.initializers import HeNormal
 
+from swiss_army_keras.utils import freeze_model
+
 from tensorflow.nn import relu
+
+import tensorflow as tf
+
+shallow_resize_map = {0: 1, 1: 2, 2: 4, 3: 8, 4: 16, 5: 32}
 
 
 def convolution_block(
@@ -58,16 +64,7 @@ def depth_convolution_block(
     x = BatchNormalization(
         name=f'pointwise_BN_{dilation_rate}', epsilon=epsilon)(x)
     x = Activation(relu)(x)
-    x = Conv2D(
-        num_filters,
-        kernel_size=kernel_size,
-        dilation_rate=dilation_rate,
-        padding="same",
-        use_bias=use_bias,
-        kernel_initializer=HeNormal(),
-    )(block_input)
-    x = BatchNormalization()(x)
-    return relu(x)
+    return x
 
 
 def DilatedSpatialPyramidPooling(dspp_input, atrous_rates, num_filters):
@@ -91,6 +88,7 @@ def DilatedSpatialPyramidPooling(dspp_input, atrous_rates, num_filters):
     x = Concatenate(axis=-1)(outputs)
     output = convolution_block(x, kernel_size=1, num_filters=num_filters)
     return output
+
 
 def deeplab_v3_plus(input_tensor, n_labels, filter_num_down=[64, 128, 256, 512, 1024],
                     deep_layer=5, shallow_layer=2, num_filters_deep=256, num_filters_shallow=48, multiscale_factor=0, atrous_rates=[6, 12, 18],
@@ -165,7 +163,7 @@ def deeplab_v3_plus(input_tensor, n_labels, filter_num_down=[64, 128, 256, 512, 
 
     multiscale_resizing = None
     X_encoder_small = None
-    
+
     # no backbone cases
     if backbone is None:
 
@@ -199,43 +197,60 @@ def deeplab_v3_plus(input_tensor, n_labels, filter_num_down=[64, 128, 256, 512, 
 
         # for other backbones
         else:
-            backbone_ = backbone_zoo(
-                backbone, weights, input_tensor, deep_layer, freeze_backbone, freeze_batch_norm)
-            # collecting backbone feature maps
-            X_encoder = backbone_([input_tensor, ])
 
             if multiscale_factor != 0:
-                multiscale_resizing = tf.keras.layers.Resizing(int(input_tensor.shape[1]/multiscale_factor), int(input_tensor.shape[2]/multiscale_factor))(input_tensor)
-                backbone_small_ = backbone_zoo(
-                backbone, weights, multiscale_resizing, deep_layer, freeze_backbone, freeze_batch_norm,return_outputs=True)
+                multiscale_resizing = tf.keras.layers.Resizing(int(
+                    input_tensor.shape[1]/multiscale_factor), int(input_tensor.shape[2]/multiscale_factor))(input_tensor)
+                backbone_small_, _ = backbone_zoo(
+                    'MobileNetV3Large', weights, multiscale_resizing, deep_layer, freeze_backbone, freeze_batch_norm, return_outputs=True)
                 print(backbone_small_[deep_layer-1])
+                backbone, preprocessing = backbone_zoo(
+                    backbone, weights, input_tensor, deep_layer, freeze_backbone, freeze_batch_norm, return_outputs=True)
+                X_encoder = backbone[deep_layer-1]
+                X_encoder_shallow = backbone[shallow_layer-1]
+                # X_encoder_small = backbone_small_[deep
                 #X_encoder_small = backbone_small_[deep_layer-1]([multiscale_resizing, ])
 
-            depth_encode = len(X_encoder) + 1
+            else:
+                backbone_ = backbone_zoo(
+                    backbone, weights, input_tensor, deep_layer, freeze_backbone, freeze_batch_norm)
+                # collecting backbone feature maps
+                X_encoder = backbone_([input_tensor, ])
+                preprocessing = backbone_.preprocessing
 
-            preprocessing = backbone_.preprocessing
+                depth_encode = len(X_encoder) + 1
 
     if multiscale_factor != 0:
-        X_encoder_back = tf.keras.layers.Resizing(X_encoder[deep_layer-1].shape[1], X_encoder[deep_layer-1].shape[2])(backbone_small_[deep_layer-1])
+        X_encoder_back = tf.keras.layers.Resizing(
+            X_encoder.shape[1], X_encoder.shape[2])(backbone_small_[deep_layer-1])
         #X_encoder_back = X_encoder[deep_layer-1]
-        x = Concatenate(axis=-1)([X_encoder[deep_layer-1], X_encoder_back])
-        x = X_encoder_back
-        print(X_encoder[deep_layer-1])
+        x = Concatenate(axis=-1)([X_encoder, X_encoder_back])
+        #x = X_encoder_back
+        print(X_encoder)
         print(X_encoder_back)
         print(x)
+        x = Model([input_tensor, ], [x, ])
+        if freeze_backbone:
+            x = freeze_model(x, freeze_batch_norm=freeze_batch_norm)
+        x = x([input_tensor, ])
     else:
         x = X_encoder[deep_layer-1]
+
     x = DilatedSpatialPyramidPooling(
         x, atrous_rates, num_filters=num_filters_deep)
 
     input_a = UpSampling2D(
-        size=(input_tensor.shape[1] // 4 // x.shape[1],
-              input_tensor.shape[2] // 4 // x.shape[2]),
+        size=(input_tensor.shape[1] // shallow_resize_map[shallow_layer] // x.shape[1],
+              input_tensor.shape[2] // shallow_resize_map[shallow_layer] // x.shape[2]),
         interpolation="bilinear",
     )(x)
-    input_b = X_encoder[shallow_layer-1]
+    if multiscale_factor != 0:
+        input_b = X_encoder_shallow
+    else:
+        input_b = X_encoder[shallow_layer-1]
 
-    input_b = convolution_block(input_b, num_filters=num_filters_shallow, kernel_size=1)
+    input_b = convolution_block(
+        input_b, num_filters=num_filters_shallow, kernel_size=1)
 
     x = Concatenate(axis=-1)([input_a, input_b])
     x = convolution_block(x)
@@ -252,9 +267,6 @@ def deeplab_v3_plus(input_tensor, n_labels, filter_num_down=[64, 128, 256, 512, 
     m.preprocessing = preprocessing
 
     return m
-
-
-
 
 
 def deeplab_v3_plus_lite(input_tensor, n_labels, filter_num_down=[64, 128, 256, 512, 1024],
@@ -374,8 +386,8 @@ def deeplab_v3_plus_lite(input_tensor, n_labels, filter_num_down=[64, 128, 256, 
     print(input_tensor)
 
     input_a = UpSampling2D(
-        size=(input_tensor.shape[1] // 4 // x.shape[1],
-              input_tensor.shape[2] // 4 // x.shape[2]),
+        size=(input_tensor.shape[1] // shallow_resize_map[shallow_layer] // x.shape[1],
+              input_tensor.shape[2] // shallow_resize_map[shallow_layer] // x.shape[2]),
         interpolation="bilinear",
     )(x)
     input_b = X_encoder[shallow_layer-1]

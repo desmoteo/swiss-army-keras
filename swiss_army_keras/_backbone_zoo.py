@@ -210,7 +210,7 @@ def backbone_zoo(backbone_name, weights, input_tensor, depth, freeze_backbone, f
             X_skip.append(backbone_.get_layer(cadidate[i]).output)
             
     if return_outputs:
-        return X_skip
+        return X_skip, keras_normalization_layers[backbone_name]
         
     model = Model(inputs=[input_tensor,], outputs=X_skip, name='{}_backbone'.format(backbone_name))
     
