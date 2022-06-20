@@ -9,7 +9,7 @@ from swiss_army_keras.activations import GELU, Snake
 from swiss_army_keras._backbone_zoo import backbone_zoo, bach_norm_checker
 from swiss_army_keras._model_unet_2d import UNET_left, UNET_right
 
-from tensorflow.keras.layers import Input, BatchNormalization, Conv2D, AveragePooling2D, UpSampling2D, Concatenate, Activation
+from tensorflow.keras.layers import Input, BatchNormalization, Conv2D, AveragePooling2D, UpSampling2D, Concatenate, Activation, Dropout
 from tensorflow.keras.models import Model
 from tensorflow.keras.initializers import HeNormal
 
@@ -51,18 +51,19 @@ def depth_convolution_block(
     use_bias=False,
     stride=1,
     depth_padding='same',
-    epsilon=1e-5
+    epsilon=1e-5,
+    namesuffix=''
 ):
 
     x = DepthwiseConv2D((kernel_size, kernel_size), strides=(stride, stride), dilation_rate=(dilation_rate, dilation_rate),
-                        padding=depth_padding, use_bias=False, name=f'depthwise_{dilation_rate}')(block_input)
+                        padding=depth_padding, use_bias=False, name=f'depthwise_{dilation_rate}_{namesuffix}')(block_input)
     x = BatchNormalization(
-        name=f'depthwise_BN__{dilation_rate}', epsilon=epsilon)(x)
+        name=f'depthwise_BN__{dilation_rate}_{namesuffix}', epsilon=epsilon)(x)
     x = Activation(relu)(x)
     x = Conv2D(num_filters, (1, 1), padding='same',
-               use_bias=False, name=f'pointwise_{dilation_rate}')(x)
+               use_bias=False, name=f'pointwise_{dilation_rate}_{namesuffix}')(x)
     x = BatchNormalization(
-        name=f'pointwise_BN_{dilation_rate}', epsilon=epsilon)(x)
+        name=f'pointwise_BN_{dilation_rate}_{namesuffix}', epsilon=epsilon)(x)
     x = Activation(relu)(x)
     return x
 
@@ -87,6 +88,7 @@ def DilatedSpatialPyramidPooling(dspp_input, atrous_rates, num_filters):
 
     x = Concatenate(axis=-1)(outputs)
     output = convolution_block(x, kernel_size=1, num_filters=num_filters)
+    output = Dropout(0.1)(output)
     return output
 
 
@@ -253,8 +255,8 @@ def deeplab_v3_plus(input_tensor, n_labels, filter_num_down=[64, 128, 256, 512, 
         input_b, num_filters=num_filters_shallow, kernel_size=1)
 
     x = Concatenate(axis=-1)([input_a, input_b])
-    x = convolution_block(x)
-    x = convolution_block(x)
+    x = depth_convolution_block(x, namesuffix='shallow1')
+    x = depth_convolution_block(x, namesuffix='shallow2')
     x = UpSampling2D(
         size=(input_tensor.shape[1] // x.shape[1],
               input_tensor.shape[2] // x.shape[2]),
