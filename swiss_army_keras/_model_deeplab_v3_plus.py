@@ -397,8 +397,8 @@ def deeplab_v3_plus_lite(input_tensor, n_labels, filter_num_down=[64, 128, 256, 
     input_b = convolution_block(input_b, num_filters=48, kernel_size=1)
 
     x = Concatenate(axis=-1)([input_a, input_b])
-    x = convolution_block(x)
-    x = convolution_block(x)
+    x = depth_convolution_block(x, namesuffix='shallow1')
+    x = depth_convolution_block(x, namesuffix='shallow2')
     """x = UpSampling2D(
         size=(input_tensor.shape[1] // x.shape[1],
               input_tensor.shape[2] // x.shape[2]),
