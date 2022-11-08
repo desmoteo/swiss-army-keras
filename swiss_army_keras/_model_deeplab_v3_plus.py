@@ -272,15 +272,15 @@ def deeplab_v3_plus(input_tensor, n_labels, filter_num_down=[64, 128, 256, 512, 
 
 
 def deeplab_v3_plus_lite(input_tensor, n_labels, filter_num_down=[64, 128, 256, 512, 1024],
-                         deep_layer=5, shallow_layer=2, atrous_rates=[6, 12, 18],
-                         stack_num_down=2, stack_num_up=1, activation='ReLU', batch_norm=False, pool=True, unpool=True,
-                         backbone=None, weights='imagenet', freeze_backbone=True, freeze_batch_norm=True, name='deeplab_v3_plus_lite'):
+                    deep_layer=5, shallow_layer=2, num_filters_deep=256, num_filters_shallow=48, multiscale_factor=0, atrous_rates=[6, 12, 18],
+                    stack_num_down=2, stack_num_up=1, activation='ReLU', batch_norm=False, pool=True, unpool=True,
+                    backbone=None, weights='imagenet', freeze_backbone=True, freeze_batch_norm=True, name='deeplab_v3_plus'):
     '''
     The base of UNET 3+ with an optional ImagNet-trained backbone.
 
     unet_3plus_2d_base(input_tensor, filter_num_down, filter_num_skip, filter_num_aggregate, 
                        stack_num_down=2, stack_num_up=1, activation='ReLU', batch_norm=False, pool=True, unpool=True, 
-                       backbone=None, weights='imagenet', freeze_backbone=True, freeze_batch_norm=True, name='unet3plus')
+                       backbone=None, weights='imagenet', freeze_backbone=True, freeze_batch_norm=True, name='deeplab_v3_plus')
 
     ----------
     Huang, H., Lin, L., Tong, R., Hu, H., Zhang, Q., Iwamoto, Y., Han, X., Chen, Y.W. and Wu, J., 2020. 
@@ -342,6 +342,9 @@ def deeplab_v3_plus_lite(input_tensor, n_labels, filter_num_down=[64, 128, 256, 
 
     X_encoder = []
 
+    multiscale_resizing = None
+    X_encoder_small = None
+
     # no backbone cases
     if backbone is None:
 
@@ -375,26 +378,60 @@ def deeplab_v3_plus_lite(input_tensor, n_labels, filter_num_down=[64, 128, 256, 
 
         # for other backbones
         else:
-            backbone_ = backbone_zoo(
-                backbone, weights, input_tensor, deep_layer, freeze_backbone, freeze_batch_norm)
-            # collecting backbone feature maps
-            X_encoder = backbone_([input_tensor, ])
-            depth_encode = len(X_encoder) + 1
 
-            preprocessing = backbone_.preprocessing
+            if multiscale_factor != 0:
+                multiscale_resizing = tf.keras.layers.Resizing(int(
+                    input_tensor.shape[1]/multiscale_factor), int(input_tensor.shape[2]/multiscale_factor))(input_tensor)
+                backbone_small_, _ = backbone_zoo(
+                    'MobileNetV3Large', weights, multiscale_resizing, deep_layer, freeze_backbone, freeze_batch_norm, return_outputs=True)
+                print(backbone_small_[deep_layer-1])
+                backbone, preprocessing = backbone_zoo(
+                    backbone, weights, input_tensor, deep_layer, freeze_backbone, freeze_batch_norm, return_outputs=True)
+                X_encoder = backbone[deep_layer-1]
+                X_encoder_shallow = backbone[shallow_layer-1]
+                # X_encoder_small = backbone_small_[deep
+                #X_encoder_small = backbone_small_[deep_layer-1]([multiscale_resizing, ])
 
-    x = DilatedSpatialPyramidPooling(X_encoder[deep_layer-1], atrous_rates)
+            else:
+                backbone_ = backbone_zoo(
+                    backbone, weights, input_tensor, deep_layer, freeze_backbone, freeze_batch_norm)
+                # collecting backbone feature maps
+                X_encoder = backbone_([input_tensor, ])
+                preprocessing = backbone_.preprocessing
 
-    print(input_tensor)
+                depth_encode = len(X_encoder) + 1
+
+    if multiscale_factor != 0:
+        X_encoder_back = tf.keras.layers.Resizing(
+            X_encoder.shape[1], X_encoder.shape[2])(backbone_small_[deep_layer-1])
+        #X_encoder_back = X_encoder[deep_layer-1]
+        x = Concatenate(axis=-1)([X_encoder, X_encoder_back])
+        #x = X_encoder_back
+        print(X_encoder)
+        print(X_encoder_back)
+        print(x)
+        x = Model([input_tensor, ], [x, ])
+        if freeze_backbone:
+            x = freeze_model(x, freeze_batch_norm=freeze_batch_norm)
+        x = x([input_tensor, ])
+    else:
+        x = X_encoder[deep_layer-1]
+
+    x = DilatedSpatialPyramidPooling(
+        x, atrous_rates, num_filters=num_filters_deep)
 
     input_a = UpSampling2D(
         size=(input_tensor.shape[1] // shallow_resize_map[shallow_layer] // x.shape[1],
               input_tensor.shape[2] // shallow_resize_map[shallow_layer] // x.shape[2]),
         interpolation="bilinear",
     )(x)
-    input_b = X_encoder[shallow_layer-1]
+    if multiscale_factor != 0:
+        input_b = X_encoder_shallow
+    else:
+        input_b = X_encoder[shallow_layer-1]
 
-    input_b = convolution_block(input_b, num_filters=48, kernel_size=1)
+    input_b = convolution_block(
+        input_b, num_filters=num_filters_shallow, kernel_size=1)
 
     x = Concatenate(axis=-1)([input_a, input_b])
     x = depth_convolution_block(x, namesuffix='shallow1')
