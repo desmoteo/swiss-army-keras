@@ -19,6 +19,9 @@ from tensorflow.nn import relu
 
 import tensorflow as tf
 
+import tensorflow_model_optimization as tfmot
+
+
 shallow_resize_map = {0: 1, 1: 2, 2: 4, 3: 8, 4: 16, 5: 32}
 
 
@@ -30,16 +33,16 @@ def convolution_block(
     padding="same",
     use_bias=False,
 ):
-    x = Conv2D(
+    x = tfmot.quantization.keras.quantize_annotate_layer(Conv2D(
         num_filters,
         kernel_size=kernel_size,
         dilation_rate=dilation_rate,
         padding="same",
         use_bias=use_bias,
         kernel_initializer=HeNormal(),
-    )(block_input)
-    x = BatchNormalization()(x)
-    return relu(x)
+    ))(block_input)
+    x = tfmot.quantization.keras.quantize_annotate_layer(BatchNormalization())(x)
+    return tfmot.quantization.keras.quantize_annotate_layer(Activation(relu))(x)
 
 
 def depth_convolution_block(
@@ -55,26 +58,26 @@ def depth_convolution_block(
     namesuffix=''
 ):
 
-    x = DepthwiseConv2D((kernel_size, kernel_size), strides=(stride, stride), dilation_rate=(dilation_rate, dilation_rate),
-                        padding=depth_padding, use_bias=False, name=f'depthwise_{dilation_rate}_{namesuffix}')(block_input)
-    x = BatchNormalization(
-        name=f'depthwise_BN__{dilation_rate}_{namesuffix}', epsilon=epsilon)(x)
-    x = Activation(relu)(x)
-    x = Conv2D(num_filters, (1, 1), padding='same',
-               use_bias=False, name=f'pointwise_{dilation_rate}_{namesuffix}')(x)
-    x = BatchNormalization(
-        name=f'pointwise_BN_{dilation_rate}_{namesuffix}', epsilon=epsilon)(x)
-    x = Activation(relu)(x)
+    x = tfmot.quantization.keras.quantize_annotate_layer(DepthwiseConv2D((kernel_size, kernel_size), strides=(stride, stride), dilation_rate=(dilation_rate, dilation_rate),
+                        padding=depth_padding, use_bias=False, name=f'depthwise_{dilation_rate}_{namesuffix}'))(block_input)
+    x = tfmot.quantization.keras.quantize_annotate_layer(BatchNormalization(
+        name=f'depthwise_BN__{dilation_rate}_{namesuffix}', epsilon=epsilon))(x)
+    x = tfmot.quantization.keras.quantize_annotate_layer(Activation(relu))(x)
+    x = tfmot.quantization.keras.quantize_annotate_layer(Conv2D(num_filters, (1, 1), padding='same',
+               use_bias=False, name=f'pointwise_{dilation_rate}_{namesuffix}'))(x)
+    x = tfmot.quantization.keras.quantize_annotate_layer(BatchNormalization(
+        name=f'pointwise_BN_{dilation_rate}_{namesuffix}', epsilon=epsilon))(x)
+    x = tfmot.quantization.keras.quantize_annotate_layer(Activation(relu))(x)
     return x
 
 
 def DilatedSpatialPyramidPooling(dspp_input, atrous_rates, num_filters):
     dims = dspp_input.shape
-    x = AveragePooling2D(pool_size=(dims[-3], dims[-2]))(dspp_input)
+    x = tfmot.quantization.keras.quantize_annotate_layer(AveragePooling2D(pool_size=(dims[-3], dims[-2])))(dspp_input)
     x = convolution_block(x, kernel_size=1, use_bias=True)
-    out_pool = UpSampling2D(
+    out_pool = tfmot.quantization.keras.quantize_annotate_layer(UpSampling2D(
         size=(dims[-3] // x.shape[1], dims[-2] // x.shape[2]), interpolation="bilinear",
-    )(x)
+    ))(x)
 
     out_1 = convolution_block(
         dspp_input, kernel_size=1, dilation_rate=1, num_filters=num_filters)
@@ -88,7 +91,7 @@ def DilatedSpatialPyramidPooling(dspp_input, atrous_rates, num_filters):
 
     x = Concatenate(axis=-1)(outputs)
     output = convolution_block(x, kernel_size=1, num_filters=num_filters)
-    output = Dropout(0.1)(output)
+    output = tfmot.quantization.keras.quantize_annotate_layer(Dropout(0.1))(output)
     return output
 
 
@@ -241,11 +244,11 @@ def deeplab_v3_plus(input_tensor, n_labels, filter_num_down=[64, 128, 256, 512, 
     x = DilatedSpatialPyramidPooling(
         x, atrous_rates, num_filters=num_filters_deep)
 
-    input_a = UpSampling2D(
+    input_a = tfmot.quantization.keras.quantize_annotate_layer(UpSampling2D(
         size=(input_tensor.shape[1] // shallow_resize_map[shallow_layer] // x.shape[1],
               input_tensor.shape[2] // shallow_resize_map[shallow_layer] // x.shape[2]),
         interpolation="bilinear",
-    )(x)
+    ))(x)
     if multiscale_factor != 0:
         input_b = X_encoder_shallow
     else:
@@ -257,15 +260,18 @@ def deeplab_v3_plus(input_tensor, n_labels, filter_num_down=[64, 128, 256, 512, 
     x = Concatenate(axis=-1)([input_a, input_b])
     x = depth_convolution_block(x, namesuffix='shallow1')
     x = depth_convolution_block(x, namesuffix='shallow2')
-    x = UpSampling2D(
+    x = tfmot.quantization.keras.quantize_annotate_layer(UpSampling2D(
         size=(input_tensor.shape[1] // x.shape[1],
               input_tensor.shape[2] // x.shape[2]),
         interpolation="bilinear",
-    )(x)
+    ))(x)
     model_output = Conv2D(n_labels, kernel_size=(1, 1), padding="same")(x)
 
     m = Model([input_tensor, ], [model_output, ])
 
+    with tfmot.quantization.keras.quantize_scope():
+        m = tfmot.quantization.keras.quantize_apply(m)
+    
     m.preprocessing = preprocessing
 
     return m
@@ -420,11 +426,11 @@ def deeplab_v3_plus_lite(input_tensor, n_labels, filter_num_down=[64, 128, 256, 
     x = DilatedSpatialPyramidPooling(
         x, atrous_rates, num_filters=num_filters_deep)
 
-    input_a = UpSampling2D(
+    input_a = tfmot.quantization.keras.quantize_annotate_layer(UpSampling2D(
         size=(input_tensor.shape[1] // shallow_resize_map[shallow_layer] // x.shape[1],
               input_tensor.shape[2] // shallow_resize_map[shallow_layer] // x.shape[2]),
         interpolation="bilinear",
-    )(x)
+    ))(x)
     if multiscale_factor != 0:
         input_b = X_encoder_shallow
     else:
@@ -433,7 +439,7 @@ def deeplab_v3_plus_lite(input_tensor, n_labels, filter_num_down=[64, 128, 256, 
     input_b = convolution_block(
         input_b, num_filters=num_filters_shallow, kernel_size=1)
 
-    x = Concatenate(axis=-1)([input_a, input_b])
+    x = tfmot.quantization.keras.quantize_annotate_layer(Concatenate(axis=-1))([input_a, input_b])
     x = depth_convolution_block(x, namesuffix='shallow1')
     x = depth_convolution_block(x, namesuffix='shallow2')
     """x = UpSampling2D(
@@ -441,10 +447,14 @@ def deeplab_v3_plus_lite(input_tensor, n_labels, filter_num_down=[64, 128, 256, 
               input_tensor.shape[2] // x.shape[2]),
         interpolation="bilinear",
     )(x)"""
-    model_output = Conv2D(n_labels, kernel_size=(1, 1), padding="same")(x)
+    model_output = tfmot.quantization.keras.quantize_annotate_layer(Conv2D(n_labels, kernel_size=(1, 1), padding="same"))(x)
 
     m = Model([input_tensor, ], [model_output, ])
+
+    with tfmot.quantization.keras.quantize_scope():
+        m = tfmot.quantization.keras.quantize_apply(m)
 
     m.preprocessing = preprocessing
 
     return m
+
